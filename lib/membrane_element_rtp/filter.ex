@@ -17,14 +17,18 @@ defmodule Membrane.Element.RTP.Filter do
     ]
   )
 
+  ## calculate wether redemand is needed
+
   def handle_process(
         :input,
         %Buffer{payload: buffer_payload, metadata: meta} = buffer,
-        context,
+        _ctx,
         state
       ) do
-    %Packet{payload: payload, header: header} = result = Parser.parse_frame(buffer_payload)
+    %Packet{payload: payload, header: header} = Parser.parse_frame(buffer_payload)
     buffer = %Buffer{buffer | payload: payload, metadata: Map.put(meta, :rtp_header, header)}
+
+    IO.inspect(byte_size(buffer_payload))
 
     {{:ok, buffer: {:output, buffer}}, state}
   end
