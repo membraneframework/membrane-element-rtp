@@ -5,6 +5,9 @@ defmodule Membrane.Element.RTP.Parser do
   Parses RTP packet base on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13)
   """
 
+  def parse_frame(<<2::2, _::binary>>), do: {:ok, :wrong_version}
+  def parse_frame(bytes) when byte_size(bytes) < 32 * 3, do: {:ok, :packet_malformed}
+
   def parse_frame(
         <<v::2, p::1, x::1, cc::4, m::1, payload_type::7, sequence_number::16, timestamp::32,
           ssrc::32, rest::binary>>
@@ -12,7 +15,7 @@ defmodule Membrane.Element.RTP.Parser do
     {parsed_csrc, rest} = extract_csrcs(rest, cc)
     {extension_header, payload} = extract_extension_header(x, rest)
 
-    %Packet{
+    packet = %Packet{
       header: %Packet.Header{
         version: v,
         marker: m,
@@ -27,6 +30,8 @@ defmodule Membrane.Element.RTP.Parser do
       },
       payload: payload
     }
+
+    {:ok, packet}
   end
 
   def extract_csrcs(data, count), do: doextract_csrcs(data, count, [])

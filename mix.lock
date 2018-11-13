@@ -14,6 +14,7 @@
   "poolboy": {:hex, :poolboy, "1.5.1", "6b46163901cfd0a1b43d692657ed9d7e599853b3b21b95ae5ae0a777cf9b6ca8", [:rebar], [], "hexpm"},
   "porcelain": {:hex, :porcelain, "2.0.3", "2d77b17d1f21fed875b8c5ecba72a01533db2013bd2e5e62c6d286c029150fdc", [:mix], [], "hexpm"},
   "qex": {:hex, :qex, "0.5.0", "5a3a9becf67d4006377c4c247ffdaaa8ae5b3634a0caadb788dc24d6125068f4", [:mix], [], "hexpm"},
+  "rop": {:hex, :rop, "0.5.3", "09640662fa07730e71a987e1d8574476f0e0d89f7856100cbf8265de6bd71973", [:mix], [], "hexpm"},
   "sippet": {:hex, :sippet, "0.6.0", "03425822cc1225f77e7b730a454a73a0931bc0934e243adb87203fc2f10cbb0d", [:mix], [{:gen_state_machine, "~> 2.0", [hex: :gen_state_machine, repo: "hexpm", optional: false]}, {:poolboy, "~> 1.5.1", [hex: :poolboy, repo: "hexpm", optional: false]}, {:socket, "~> 0.3.5", [hex: :socket, repo: "hexpm", optional: false]}], "hexpm"},
   "socket": {:hex, :socket, "0.3.13", "98a2ab20ce17f95fb512c5cadddba32b57273e0d2dba2d2e5f976c5969d0c632", [:mix], [], "hexpm"},
 }

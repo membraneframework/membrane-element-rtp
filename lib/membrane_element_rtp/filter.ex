@@ -1,8 +1,14 @@
 defmodule Membrane.Element.RTP.Filter do
+  @moduledoc """
+  Parses RTP packets
+  See `options/0` for available options
+  """
   use Membrane.Element.Base.Filter
 
   alias Membrane.Element.RTP.{Packet, Parser}
   alias Membrane.Buffer
+
+  @packet_size_threshold 1600
 
   def_output_pads(
     output: [
@@ -17,7 +23,7 @@ defmodule Membrane.Element.RTP.Filter do
     ]
   )
 
-  ## calculate wether redemand is needed
+  # Private API
 
   def handle_process(
         :input,
@@ -25,12 +31,15 @@ defmodule Membrane.Element.RTP.Filter do
         _ctx,
         state
       ) do
-    %Packet{payload: payload, header: header} = Parser.parse_frame(buffer_payload)
-    buffer = %Buffer{buffer | payload: payload, metadata: Map.put(meta, :rtp_header, header)}
-
-    IO.inspect(byte_size(buffer_payload))
-
-    {{:ok, buffer: {:output, buffer}}, state}
+    with {:ok, packet} <- Parser.parse_frame(buffer_payload),
+         %Packet{payload: payload, header: header} <- packet when byte_size(payload) > 0,
+         buffer <- %Buffer{
+           buffer
+           | payload: payload,
+             metadata: Map.put(meta, :rtp_header, header)
+         } do
+      {{:ok, buffer: {:output, buffer}, redemand: :output}, state}
+    end
   end
 
   @impl true
