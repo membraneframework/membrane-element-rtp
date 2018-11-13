@@ -5,8 +5,8 @@ defmodule Membrane.Element.RTP.Parser do
   Parses RTP packet base on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13)
   """
 
-  def parse_frame(<<2::2, _::binary>>), do: {:ok, :wrong_version}
-  def parse_frame(bytes) when byte_size(bytes) < 32 * 3, do: {:ok, :packet_malformed}
+  def parse_frame(<<version::2, _::6, _::binary>>) when version != 2, do: {:error, :wrong_version}
+  def parse_frame(bytes) when byte_size(bytes) < 32 * 3, do: {:error, :packet_malformed}
 
   def parse_frame(
         <<v::2, p::1, x::1, cc::4, m::1, payload_type::7, sequence_number::16, timestamp::32,

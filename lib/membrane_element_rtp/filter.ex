@@ -32,7 +32,7 @@ defmodule Membrane.Element.RTP.Filter do
         state
       ) do
     with {:ok, packet} <- Parser.parse_frame(buffer_payload),
-         %Packet{payload: payload, header: header} <- packet when byte_size(payload) > 0,
+         %Packet{payload: payload, header: header} when byte_size(payload) > 0 <- packet,
          buffer <- %Buffer{
            buffer
            | payload: payload,
