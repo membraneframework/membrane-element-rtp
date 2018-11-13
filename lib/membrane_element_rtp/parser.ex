@@ -1,5 +1,9 @@
 defmodule Membrane.Element.RTP.Parser do
-  alias Membrane.Element.RTP.Frame
+  alias Membrane.Element.RTP.Packet
+
+  @moduledoc """
+  Parses RTP packet base on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13)
+  """
 
   def parse_frame(
         <<v::2, p::1, x::1, cc::4, m::1, payload_type::7, sequence_number::16, timestamp::32,
@@ -8,16 +12,18 @@ defmodule Membrane.Element.RTP.Parser do
     {parsed_csrc, rest} = extract_crsrcs(rest, cc)
     {header, payload} = extract_extension_header(x, rest)
 
-    %Frame{
-      version: v,
-      marker: m,
-      padding: p,
-      extension: x,
-      csrc_count: cc,
-      ssrc: ssrc,
-      sequence_number: sequence_number,
-      payload_type: payload_type,
-      timestamp: timestamp,
+    %Packet{
+      header: %Packet.Header{
+        version: v,
+        marker: m,
+        padding: p,
+        extension: x,
+        csrc_count: cc,
+        ssrc: ssrc,
+        sequence_number: sequence_number,
+        payload_type: payload_type,
+        timestamp: timestamp
+      },
       payload: payload
     }
   end

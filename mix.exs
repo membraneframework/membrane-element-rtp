@@ -4,7 +4,7 @@ defmodule Membrane.Element.RTP.MixProject do
   def project do
     [
       app: :membrane_element_rtp,
-      version: "0.1.0",
+      version: "0.2.0",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       deps: deps()
@@ -21,7 +21,7 @@ defmodule Membrane.Element.RTP.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:membrane_core, "~> 0.1.0"}
+      {:membrane_core, "~> 0.2.0"}
     ]
   end
 end

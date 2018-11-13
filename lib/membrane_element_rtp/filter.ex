@@ -1,31 +1,36 @@
 defmodule Membrane.Element.RTP.Filter do
   use Membrane.Element.Base.Filter
 
-  alias Membrane.Element.RTP.{Frame, Parser}
+  alias Membrane.Element.RTP.{Packet, Parser}
   alias Membrane.Buffer
 
-  def_known_source_pads(source: {:always, :pull, :any})
+  def_output_pads(
+    output: [
+      caps: :any
+    ]
+  )
 
-  def_known_sink_pads(sink: {:always, {:pull, demand_in: :buffers}, :any})
+  def_input_pads(
+    input: [
+      caps: :any,
+      demand_unit: :buffers
+    ]
+  )
 
-  def handle_process(:sink, buffers, context, state) do
-    buffers =
-      Enum.map(buffers, fn %Buffer{payload: buffer_payload} = buffer ->
-        %Frame{payload: payload} = result = Parser.parse_frame(buffer_payload)
-        IO.inspect(result)
-        IO.inspect(byte_size(result.payload))
-        %Buffer{buffer | payload: payload}
-      end)
+  def handle_process(
+        :input,
+        %Buffer{payload: buffer_payload, metadata: meta} = buffer,
+        context,
+        state
+      ) do
+    %Packet{payload: payload, header: header} = result = Parser.parse_frame(buffer_payload)
+    buffer = %Buffer{buffer | payload: payload, metadata: Map.put(meta, :rtp_header, header)}
 
-    {{:ok, buffer: {:source, buffers}}, state}
+    {{:ok, buffer: {:output, buffer}}, state}
   end
 
   @impl true
-  def handle_demand(:source, size, :buffers, _, state) do
-    {{:ok, demand: {:sink, size}}, state}
-  end
-
-  def handle_demand(:source, _size, :bytes, _, state) do
-    {{:ok, demand: :sink}, state}
+  def handle_demand(:output, size, _, _ctx, state) do
+    {{:ok, demand: {:input, size}}, state}
   end
 end
