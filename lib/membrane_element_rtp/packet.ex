@@ -1,21 +1,14 @@
 defmodule Membrane.Element.RTP.Packet do
+  alias __MODULE__
+  alias Membrane.Element.RTP.Header
+
+  @type t :: %Packet{
+          header: Header.t(),
+          payload: any()
+        }
+
   defstruct [
     :header,
     :payload
   ]
-
-  defmodule Header do
-    defstruct [
-      :version,
-      :padding,
-      :extension_header,
-      :csrc_count,
-      :ssrc,
-      :marker,
-      :payload_type,
-      :timestamp,
-      :sequence_number,
-      :csrcs
-    ]
-  end
 end

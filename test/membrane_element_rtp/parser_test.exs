@@ -1,16 +1,11 @@
 defmodule Membrane.Element.RTP.ParserTest do
   use ExUnit.Case
 
-  alias Membrane.Element.RTP.Parser
-
-  @external_resource "test/fixtures/rtp_good/rtp_packet.bin"
-  @sample_packet File.read!("test/fixtures/rtp_good/rtp_packet.bin")
-  @external_resource "test/fixtures/rtp_good/rtp_packet_payload.bin"
-  @sample_packet_payload File.read!("test/fixtures/rtp_good/rtp_packet_payload.bin")
+  alias Membrane.Element.RTP.{Parser, SamplePacket}
 
   describe "RTP parser" do
     test "parses valid packets" do
-      assert Membrane.Element.RTP.Parser.parse_frame(@sample_packet) ==
+      assert Membrane.Element.RTP.Parser.parse_frame(SamplePacket.sample_packet()) ==
                {:ok,
                 %Membrane.Element.RTP.Packet{
                   header: %Membrane.Element.RTP.Packet.Header{
@@ -25,7 +20,7 @@ defmodule Membrane.Element.RTP.ParserTest do
                     timestamp: 1_653_702_647,
                     version: 2
                   },
-                  payload: @sample_packet_payload
+                  payload: SamplePacket.sample_packet_payload()
                 }}
     end
   end

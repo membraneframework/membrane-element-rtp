@@ -8,8 +8,6 @@ defmodule Membrane.Element.RTP.Filter do
   alias Membrane.Element.RTP.{Packet, Parser}
   alias Membrane.Buffer
 
-  @packet_size_threshold 1600
-
   def_output_pads(
     output: [
       caps: :any
@@ -25,6 +23,7 @@ defmodule Membrane.Element.RTP.Filter do
 
   # Private API
 
+  @impl true
   def handle_process(
         :input,
         %Buffer{payload: buffer_payload, metadata: meta} = buffer,
@@ -39,6 +38,8 @@ defmodule Membrane.Element.RTP.Filter do
              metadata: Map.put(meta, :rtp_header, header)
          } do
       {{:ok, buffer: {:output, buffer}, redemand: :output}, state}
+    else
+      {:error, reason} -> {{:error, reason}, state}
     end
   end
 
