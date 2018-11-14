@@ -1,6 +1,6 @@
 defmodule Membrane.Element.RTP.Packet do
   alias __MODULE__
-  alias Membrane.Element.RTP.Header
+  alias Membrane.Element.RTP.Packet.Header
 
   @type t :: %Packet{
           header: Header.t(),

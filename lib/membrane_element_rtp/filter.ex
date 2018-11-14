@@ -30,16 +30,20 @@ defmodule Membrane.Element.RTP.Filter do
         _ctx,
         state
       ) do
-    with {:ok, packet} <- Parser.parse_frame(buffer_payload),
-         %Packet{payload: payload, header: header} when byte_size(payload) > 0 <- packet,
-         buffer <- %Buffer{
-           buffer
-           | payload: payload,
-             metadata: Map.put(meta, :rtp_header, header)
-         } do
-      {{:ok, buffer: {:output, buffer}, redemand: :output}, state}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+    case Parser.parse_frame(buffer_payload) do
+      {:ok, packet} ->
+        %Packet{payload: payload, header: header} = packet
+
+        buffer = %Buffer{
+          buffer
+          | payload: payload,
+            metadata: Map.put(meta, :rtp_header, header)
+        }
+
+        {{:ok, buffer: {:output, buffer}, redemand: :output}, state}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
