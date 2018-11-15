@@ -8,7 +8,7 @@ defmodule Membrane.Element.RTP.Parser do
   @type error_reason() :: :wrong_version | :packet_malformed
   @spec parse_frame(binary()) :: {:ok, Packet.t()} | {:error, error_reason()}
   def parse_frame(<<version::2, _::6, _::binary>>) when version != 2, do: {:error, :wrong_version}
-  def parse_frame(bytes) when byte_size(bytes) < 32 * 3, do: {:error, :packet_malformed}
+  def parse_frame(bytes) when byte_size(bytes) < 4 * 3, do: {:error, :packet_malformed}
 
   def parse_frame(
         <<v::2, p::1, x::1, cc::4, m::1, payload_type::7, sequence_number::16, timestamp::32,

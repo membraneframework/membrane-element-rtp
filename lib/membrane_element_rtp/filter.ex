@@ -22,6 +22,13 @@ defmodule Membrane.Element.RTP.Filter do
   )
 
   # Private API
+  @impl true
+  def handle_init(options) do
+    {:ok,
+     %{
+       last_packet: 0
+     }}
+  end
 
   @impl true
   def handle_process(
