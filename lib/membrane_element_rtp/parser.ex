@@ -1,5 +1,5 @@
 defmodule Membrane.Element.RTP.Parser do
-  alias Membrane.Element.RTP.Packet
+  alias Membrane.Caps.RTP.Packet
 
   @moduledoc """
   Parses RTP packet base on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13)
