@@ -1,5 +1,5 @@
 defmodule Membrane.Element.RTP.SamplePacket do
-  alias Membrane.Caps.RTP.Packet
+  alias Membrane.Caps.RTP.Header
 
   @external_resource "test/fixtures/rtp/rtp_packet.bin"
   @sample_packet File.read!("test/fixtures/rtp/rtp_packet.bin")
@@ -11,14 +11,14 @@ defmodule Membrane.Element.RTP.SamplePacket do
 
   def sample_buffer,
     do: %Membrane.Buffer{
-      payload: %Packet{
-        payload: sample_packet_payload(),
-        header: sample_header()
+      payload: sample_packet_payload(),
+      metadata: %{
+        rtp_header: sample_header()
       }
     }
 
   def sample_header,
-    do: %Packet.Header{
+    do: %Header{
       csrc_count: 0,
       csrcs: [],
       extension_header: nil,

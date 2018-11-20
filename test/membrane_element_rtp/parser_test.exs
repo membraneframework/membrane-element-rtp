@@ -1,15 +1,15 @@
 defmodule Membrane.Element.RTP.ParserTest do
   use ExUnit.Case
 
-  alias Membrane.Element.RTP.{Parser, SamplePacket}
-  alias Membrane.Caps.RTP.Packet
+  alias Membrane.Element.RTP.{Parser, SamplePacket, Packet}
+  alias Membrane.Caps.RTP.Header
 
   describe "RTP parser" do
     test "parses valid packets" do
       assert Membrane.Element.RTP.Parser.parse_frame(SamplePacket.sample_packet()) ==
                {:ok,
                 %Packet{
-                  header: %Packet.Header{
+                  header: %Header{
                     csrc_count: 0,
                     csrcs: [],
                     extension_header: nil,

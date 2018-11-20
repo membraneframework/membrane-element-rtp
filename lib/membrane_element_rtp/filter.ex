@@ -6,6 +6,7 @@ defmodule Membrane.Element.RTP.Filter do
   use Membrane.Element.Base.Filter
 
   alias Membrane.Element.RTP.Parser
+  alias Membrane.Element.RTP.Packet
   alias Membrane.Caps.RTP, as: Caps
   alias Membrane.Buffer
   alias Membrane.Caps.Matcher
@@ -43,15 +44,16 @@ defmodule Membrane.Element.RTP.Filter do
   @impl true
   def handle_process(
         :input,
-        %Buffer{payload: buffer_payload} = buffer,
+        %Buffer{payload: buffer_payload, metadata: meta} = buffer,
         _ctx,
         state
       ) do
     case Parser.parse_frame(buffer_payload) do
-      {:ok, packet} ->
+      {:ok, %Packet{header: header, payload: payload}} ->
         buffer = %Buffer{
           buffer
-          | payload: packet
+          | payload: payload,
+            metadata: Map.put(meta, :rtp_header, header)
         }
 
         {{:ok, buffer: {:output, buffer}, redemand: :output}, state}

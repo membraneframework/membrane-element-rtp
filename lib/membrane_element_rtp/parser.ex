@@ -1,5 +1,6 @@
 defmodule Membrane.Element.RTP.Parser do
-  alias Membrane.Caps.RTP.Packet
+  alias Membrane.Element.RTP.Packet
+  alias Membrane.Caps.RTP.Header
 
   @moduledoc """
   Parses RTP packet base on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13)
@@ -18,7 +19,7 @@ defmodule Membrane.Element.RTP.Parser do
     {extension_header, payload} = extract_extension_header(x, rest)
 
     packet = %Packet{
-      header: %Packet.Header{
+      header: %Header{
         version: v,
         marker: m,
         padding: p,
