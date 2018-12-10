@@ -1,5 +1,5 @@
 defmodule Membrane.Element.RTP.SamplePacket do
-  alias Membrane.Caps.RTP.Header
+  alias Membrane.Element.RTP.Header
 
   @external_resource "test/fixtures/rtp/rtp_packet.bin"
   @sample_packet File.read!("test/fixtures/rtp/rtp_packet.bin")
@@ -21,9 +21,9 @@ defmodule Membrane.Element.RTP.SamplePacket do
     do: %Header{
       csrc_count: 0,
       csrcs: [],
-      extension_header: nil,
-      marker: 0,
-      padding: 0,
+      extension_header: false,
+      marker: false,
+      padding: false,
       payload_type: 14,
       sequence_number: 3983,
       ssrc: 3_919_876_492,

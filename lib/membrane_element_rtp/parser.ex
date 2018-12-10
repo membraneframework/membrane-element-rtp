@@ -1,52 +1,98 @@
 defmodule Membrane.Element.RTP.Parser do
-  alias Membrane.Element.RTP.Packet
-  alias Membrane.Caps.RTP.Header
-
   @moduledoc """
-  Parses RTP packet base on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13)
+  Parses RTP packets
+  See `options/0` for available options
   """
+  use Membrane.Element.Base.Filter
 
-  @type error_reason() :: :wrong_version | :packet_malformed
-  @spec parse_frame(binary()) :: {:ok, Packet.t()} | {:error, error_reason()}
-  def parse_frame(<<version::2, _::6, _::binary>>) when version != 2, do: {:error, :wrong_version}
-  def parse_frame(bytes) when byte_size(bytes) < 4 * 3, do: {:error, :packet_malformed}
+  alias Membrane.Buffer
+  alias Membrane.Caps.RTP, as: Caps
+  alias Membrane.Element.Action
+  alias Membrane.Element.RTP.{PacketParser, Packet, Header, PayloadTypeDecoder}
 
-  def parse_frame(
-        <<v::2, p::1, x::1, cc::4, m::1, payload_type::7, sequence_number::16, timestamp::32,
-          ssrc::32, rest::binary>>
-      ) do
-    {parsed_csrc, rest} = extract_csrcs(rest, cc)
-    {extension_header, payload} = extract_extension_header(x, rest)
+  @metadata_fields [:timestamp, :sequence_number]
 
-    packet = %Packet{
-      header: %Header{
-        version: v,
-        marker: m,
-        padding: p,
-        extension_header: extension_header,
-        csrc_count: cc,
-        ssrc: ssrc,
-        sequence_number: sequence_number,
-        payload_type: payload_type,
-        timestamp: timestamp,
-        csrcs: parsed_csrc
-      },
-      payload: payload
-    }
+  def_output_pads output: [
+                    caps: Caps
+                  ]
 
-    {:ok, packet}
+  def_input_pads input: [
+                   caps: :any,
+                   demand_unit: :buffers
+                 ]
+
+  def_options payload_type: [
+                type: :integer,
+                description: """
+                Expected payload type.
+                """
+              ]
+
+  # TODO: Send caps when first buffer arrives
+
+  @impl true
+  def handle_init(%__MODULE__{} = options) do
+    {:ok, %{}}
   end
 
-  defp extract_csrcs(data, count), do: doextract_csrcs(data, count, [])
+  @impl true
+  def handle_process(:input, %Buffer{payload: buffer_payload} = buffer, _ctx, state) do
+    with {:ok, %Packet{} = packet} <- PacketParser.parse_frame(buffer_payload),
+         {commands, state} <- build_commands(packet, buffer, state) do
+      {{:ok, commands}, state}
+    else
+      {:error, reason} ->
+        {{:error, reason}, state}
+    end
+  end
 
-  defp doextract_csrcs(data, 0, acc), do: {acc, data}
+  @impl true
+  def handle_demand(:output, size, _unit, _ctx, state) do
+    {{:ok, demand: {:input, size}}, state}
+  end
 
-  defp doextract_csrcs(<<csrc::32, rest::binary>>, count, acc),
-    do: doextract_csrcs(rest, count - 1, [csrc | acc])
+  @spec build_commands(Packet.t(), Buffer.t(), map()) :: {[Action.t()]}
+  defp build_commands(packet, buffer, state)
 
-  defp extract_extension_header(is_header_present, data)
-  defp extract_extension_header(0, data), do: {nil, data}
+  defp build_commands(packet, buffer, %{base_timestamp: _} = state) do
+    buffer = build_buffer(buffer, packet)
+    commands = [buffer: {:output, buffer}]
+    {commands, state}
+  end
 
-  defp extract_extension_header(1, <<extension_header::32, rest::binary>>),
-    do: {extension_header, rest}
+  defp build_commands(%Packet{} = packet, buffer, state) do
+    %Packet{header: %Header{timestamp: timestamp}} = packet
+    {commands, state} = build_commands(packet, buffer, %{state | base_timestamp: timestamp})
+    caps = build_caps(packet)
+    {[caps | commands], state}
+  end
+
+  @spec build_caps(Packet.t()) :: Action.caps_t()
+  defp build_caps(%Packet{header: header}) do
+    %Header{
+      payload_type: payload_type
+    } = header
+
+    caps = %Caps{
+      raw_payload_type: payload_type,
+      payload_type: PayloadTypeDecoder.decode_payload_type(payload_type)
+    }
+
+    {:caps, {:output, caps}}
+  end
+
+  @spec build_buffer(Buffer.t(), Packet.t()) :: Buffer.t()
+  defp build_buffer(
+         %Buffer{metadata: metadata} = original_buffer,
+         %Packet{payload: payload} = packet
+       ) do
+    updated_metadata = build_metadata(packet, metadata)
+    %Buffer{original_buffer | payload: payload, metadata: updated_metadata}
+  end
+
+  @spec build_metadata(Packet.t(), map()) :: map()
+  defp build_metadata(%Packet{header: %Header{} = header}, metadata) do
+    extracted = Map.take(header, @metadata_fields)
+    Map.put(metadata, :rtp, extracted)
+  end
 end

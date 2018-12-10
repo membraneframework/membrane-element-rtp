@@ -1,20 +1,19 @@
 defmodule Membrane.Element.RTP.ParserTest do
   use ExUnit.Case
 
-  alias Membrane.Element.RTP.{Parser, SamplePacket, Packet}
-  alias Membrane.Caps.RTP.Header
+  alias Membrane.Element.RTP.{Header, Packet, PacketParser, SamplePacket}
 
   describe "RTP parser" do
     test "parses valid packets" do
-      assert Membrane.Element.RTP.Parser.parse_frame(SamplePacket.sample_packet()) ==
+      assert PacketParser.parse_frame(SamplePacket.sample_packet()) ==
                {:ok,
                 %Packet{
                   header: %Header{
                     csrc_count: 0,
                     csrcs: [],
-                    extension_header: nil,
-                    marker: 0,
-                    padding: 0,
+                    extension_header: false,
+                    marker: false,
+                    padding: false,
                     payload_type: 14,
                     sequence_number: 3983,
                     ssrc: 3_919_876_492,
@@ -27,10 +26,10 @@ defmodule Membrane.Element.RTP.ParserTest do
   end
 
   test "returns error when version is not supported" do
-    assert Parser.parse_frame(<<1::2, 1233::1022>>) == {:error, :wrong_version}
+    assert PacketParser.parse_frame(<<1::2, 1233::1022>>) == {:error, :wrong_version}
   end
 
   test "returns error when packet is too short" do
-    assert Parser.parse_frame(<<128, 127, 0, 0, 1>>) == {:error, :packet_malformed}
+    assert PacketParser.parse_frame(<<128, 127, 0, 0, 1>>) == {:error, :packet_malformed}
   end
 end
