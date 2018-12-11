@@ -1,14 +1,15 @@
 defmodule Membrane.Element.RTP.Parser do
   @moduledoc """
-  Parses RTP packets
+  Parses RTP packets.
   See `options/0` for available options
   """
+
   use Membrane.Element.Base.Filter
 
   alias Membrane.Buffer
   alias Membrane.Caps.RTP, as: Caps
   alias Membrane.Element.Action
-  alias Membrane.Element.RTP.{PacketParser, Packet, Header, PayloadTypeDecoder}
+  alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder}
 
   @metadata_fields [:timestamp, :sequence_number]
 
@@ -21,23 +22,23 @@ defmodule Membrane.Element.RTP.Parser do
                    demand_unit: :buffers
                  ]
 
-  def_options payload_type: [
-                type: :integer,
-                description: """
-                Expected payload type.
-                """
-              ]
+  defmodule State do
+    @moduledoc false
+    defstruct raw_payload_type: nil
 
-  # TODO: Send caps when first buffer arrives
+    @type t :: %__MODULE__{
+            raw_payload_type: Caps.raw_payload_type()
+          }
+  end
 
   @impl true
-  def handle_init(%__MODULE__{} = options) do
-    {:ok, %{}}
+  def handle_init(_) do
+    {:ok, %State{}}
   end
 
   @impl true
   def handle_process(:input, %Buffer{payload: buffer_payload} = buffer, _ctx, state) do
-    with {:ok, %Packet{} = packet} <- PacketParser.parse_frame(buffer_payload),
+    with {:ok, %Packet{} = packet} <- PacketParser.parse_packet(buffer_payload),
          {commands, state} <- build_commands(packet, buffer, state) do
       {{:ok, commands}, state}
     else
@@ -51,20 +52,20 @@ defmodule Membrane.Element.RTP.Parser do
     {{:ok, demand: {:input, size}}, state}
   end
 
-  @spec build_commands(Packet.t(), Buffer.t(), map()) :: {[Action.t()]}
+  @spec build_commands(Packet.t(), Buffer.t(), State.t()) :: {[Action.t()], State.t()}
   defp build_commands(packet, buffer, state)
 
-  defp build_commands(packet, buffer, %{base_timestamp: _} = state) do
+  defp build_commands(%Packet{} = packet, buffer, %State{raw_payload_type: nil} = state) do
+    %Packet{header: %Header{payload_type: pt}} = packet
+    {commands, state} = build_commands(packet, buffer, %State{state | raw_payload_type: pt})
+    caps = build_caps(packet)
+    {[caps | commands], state}
+  end
+
+  defp build_commands(packet, buffer, %State{raw_payload_type: _} = state) do
     buffer = build_buffer(buffer, packet)
     commands = [buffer: {:output, buffer}]
     {commands, state}
-  end
-
-  defp build_commands(%Packet{} = packet, buffer, state) do
-    %Packet{header: %Header{timestamp: timestamp}} = packet
-    {commands, state} = build_commands(packet, buffer, %{state | base_timestamp: timestamp})
-    caps = build_caps(packet)
-    {[caps | commands], state}
   end
 
   @spec build_caps(Packet.t()) :: Action.caps_t()

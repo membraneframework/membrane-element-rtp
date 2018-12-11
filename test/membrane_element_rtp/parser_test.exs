@@ -1,35 +1,41 @@
 defmodule Membrane.Element.RTP.ParserTest do
   use ExUnit.Case
 
-  alias Membrane.Element.RTP.{Header, Packet, PacketParser, SamplePacket}
+  alias Membrane.Buffer
+  alias Membrane.Element.RTP.{Parser, SamplePacket}
 
-  describe "RTP parser" do
-    test "parses valid packets" do
-      assert PacketParser.parse_frame(SamplePacket.sample_packet()) ==
-               {:ok,
-                %Packet{
-                  header: %Header{
-                    csrc_count: 0,
-                    csrcs: [],
-                    extension_header: false,
-                    marker: false,
-                    padding: false,
-                    payload_type: 14,
-                    sequence_number: 3983,
-                    ssrc: 3_919_876_492,
-                    timestamp: 1_653_702_647,
-                    version: 2
-                  },
-                  payload: SamplePacket.sample_packet_payload()
-                }}
+  describe "Parser" do
+    test "sends caps and buffer action when parsing first packet" do
+      state = %Parser.State{}
+      packet = SamplePacket.sample_packet()
+
+      assert Parser.handle_process(:input, %Buffer{payload: packet}, nil, state) ==
+               {{:ok,
+                 [
+                   caps: {:output, %Membrane.Caps.RTP{payload_type: :mpa, raw_payload_type: 14}},
+                   buffer:
+                     {:output,
+                      %Membrane.Buffer{
+                        metadata: %{rtp: %{sequence_number: 3983, timestamp: 1_653_702_647}},
+                        payload: SamplePacket.sample_packet_payload()
+                      }}
+                 ]}, %Membrane.Element.RTP.Parser.State{raw_payload_type: 14}}
     end
-  end
 
-  test "returns error when version is not supported" do
-    assert PacketParser.parse_frame(<<1::2, 1233::1022>>) == {:error, :wrong_version}
-  end
+    test "send buffer action with payload on non-first packet" do
+      state = %Parser.State{raw_payload_type: 14}
+      packet = SamplePacket.sample_packet()
 
-  test "returns error when packet is too short" do
-    assert PacketParser.parse_frame(<<128, 127, 0, 0, 1>>) == {:error, :packet_malformed}
+      assert Parser.handle_process(:input, %Buffer{payload: packet}, nil, state) ==
+               {{:ok,
+                 [
+                   buffer:
+                     {:output,
+                      %Membrane.Buffer{
+                        metadata: %{rtp: %{sequence_number: 3983, timestamp: 1_653_702_647}},
+                        payload: SamplePacket.sample_packet_payload()
+                      }}
+                 ]}, %Membrane.Element.RTP.Parser.State{raw_payload_type: 14}}
+    end
   end
 end

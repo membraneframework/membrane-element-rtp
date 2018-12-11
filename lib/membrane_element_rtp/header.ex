@@ -1,9 +1,25 @@
 defmodule Membrane.Element.RTP.Header do
-  alias Membrane.Caps.RTP
+  @moduledoc """
+  Describes RTP Header defined in [RFC3550](https://tools.ietf.org/html/rfc3550#page-13)
 
-  @typedoc """
-  Describes data stored in RTP header.
+  ```
+   0                   1                   2                   3
+   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |V=2|P|X|  CC   |M|     PT      |       sequence number         |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                           timestamp                           |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |           synchronization source (SSRC) identifier            |
+  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+  |            contributing source (CSRC) identifiers             |
+  |                             ....                              |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  ```
   """
+
+  alias Membrane.Caps.RTP
+  alias Membrane.Element.RTP.HeaderExtension
 
   @typedoc """
   This field identifies the version of RTP.  The version defined by this specification is two 2.
@@ -11,11 +27,18 @@ defmodule Membrane.Element.RTP.Header do
   @type version :: 0..2
 
   @typedoc """
+  Designates wether packet contains one or more additional padding octets at the end which are not part of the payload.  The last octet of the padding contains a count of how many padding octets should be ignored, including itself.
   """
   @type padding :: boolean()
 
+  @typedoc """
+  If the extension bit is set, the fixed header MUST be followed by exactly one header extension
+  """
   @type extension :: boolean()
 
+  @typedoc """
+  The interpretation of the marker is defined by a profile
+  """
   @type marker :: boolean()
 
   @type t :: %__MODULE__{
@@ -25,13 +48,14 @@ defmodule Membrane.Element.RTP.Header do
           csrc_count: 0..15,
           ssrc: non_neg_integer(),
           marker: marker(),
-          payload_type: binary(),
+          payload_type: RTP.raw_payload_type(),
           timestamp: non_neg_integer(),
           sequence_number: non_neg_integer(),
-          csrcs: [non_neg_integer()]
+          csrcs: [non_neg_integer()],
+          extension_header_data: HeaderExtension.t()
         }
 
-  defstruct [
+  @enforce_keys [
     :version,
     :padding,
     :extension_header,
@@ -43,4 +67,5 @@ defmodule Membrane.Element.RTP.Header do
     :sequence_number,
     :csrcs
   ]
+  defstruct @enforce_keys ++ [:extension_header_data]
 end

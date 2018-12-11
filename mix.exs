@@ -17,7 +17,14 @@ defmodule Membrane.Element.RTP.MixProject do
       source_url: @github_url,
       docs: docs(),
       homepage_url: "https://membraneframework.org",
-      deps: deps()
+      test_coverage: [tool: ExCoveralls],
+      deps: deps(),
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test
+      ]
     ]
   end
 
@@ -58,7 +65,8 @@ defmodule Membrane.Element.RTP.MixProject do
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:membrane_caps_rtp,
        git: "git@github.com:membraneframework/membrane-caps-rtp",
-       branch: "initial-caps-and-packet"}
+       branch: "initial-caps-and-packet"},
+      {:excoveralls, "~> 0.8", only: :test}
     ]
   end
 end
