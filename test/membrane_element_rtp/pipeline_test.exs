@@ -6,6 +6,8 @@ defmodule Membrane.Element.RTP.PipelineTest do
   alias Membrane.Pipeline
   alias Membrane.Testing
 
+  @buffer_receive_timeout 1000
+
   test "Pipeline decodes set of RTP packets" do
     test_data_base = 1..100
     test_data = SamplePacket.fake_packet_list(test_data_base)
@@ -22,11 +24,8 @@ defmodule Membrane.Element.RTP.PipelineTest do
 
     Pipeline.play(pipeline)
 
-    result =
-      Enum.map(1..100, fn _ ->
-        assert_receive %Buffer{}, 1000
-      end)
-
-    assert length(result) == Enum.count(test_data_base)
+    Enum.each(test_data_base, fn _ ->
+      assert_receive %Buffer{}, @buffer_receive_timeout
+    end)
   end
 end

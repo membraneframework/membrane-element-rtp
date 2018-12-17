@@ -21,7 +21,7 @@ defmodule Membrane.Element.RTP.PacketParserTest do
       assert PacketParser.parse_packet(<<128, 127, 0, 0, 1>>) == {:error, :packet_malformed}
     end
 
-    test "parser csrcs correctly" do
+    test "parses csrcs correctly" do
       <<header_1::4, _old_cc::4, header_2::88, payload::binary()>> = SamplePacket.sample_packet()
       test_packet = <<header_1::4, 2::4, header_2::88, 12::32, 21::32, payload::binary()>>
       expected_header = %Header{SamplePacket.sample_header() | csrcs: [21, 12], csrc_count: 2}

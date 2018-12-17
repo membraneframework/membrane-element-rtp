@@ -7,7 +7,7 @@ defmodule Membrane.Element.RTP.Packet do
 
   @type t :: %__MODULE__{
           header: Header.t(),
-          payload: any()
+          payload: binary()
         }
 
   defstruct [

@@ -22,7 +22,7 @@ defmodule Membrane.Element.RTP.ParserTest do
                  ]}, %Membrane.Element.RTP.Parser.State{raw_payload_type: 14}}
     end
 
-    test "send buffer action with payload on non-first packet" do
+    test "sends buffer action with payload on non-first packet" do
       state = %Parser.State{raw_payload_type: 14}
       packet = SamplePacket.sample_packet()
 

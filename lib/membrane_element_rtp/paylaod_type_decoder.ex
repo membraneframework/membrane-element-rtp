@@ -1,12 +1,12 @@
 defmodule Membrane.Element.RTP.PayloadTypeDecoder do
   @moduledoc """
-  This module contains utility to translate numerical payload type into atom value.
+  This module contains utility to translate numerical payload type into an atom value.
   """
 
   alias Membrane.Caps.RTP
 
   @doc """
-  Decodes numerical payload type into atom value according to [RFC3551](https://tools.ietf.org/html/rfc3551#page-32).
+  Decodes numerical payload type into an atom value according to [RFC3551](https://tools.ietf.org/html/rfc3551#page-32).
   For quick reference check [datasheet](https://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml).
   """
   @spec decode_payload_type(payload_type :: RTP.raw_payload_type()) :: RTP.payload_type()
