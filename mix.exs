@@ -59,13 +59,10 @@ defmodule Membrane.Element.RTP.MixProject do
 
   defp deps do
     [
-      {:membrane_core,
-       git: "git@github.com:membraneframework/membrane-core", branch: "testing-tools"},
+      {:membrane_core, github: "membraneframework/membrane-core", branch: "testing-tools"},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
-      {:membrane_caps_rtp,
-       git: "git@github.com:membraneframework/membrane-caps-rtp",
-       branch: "initial-caps-and-packet"},
+      {:membrane_caps_rtp, github: "membraneframework/membrane-caps-rtp"},
       {:excoveralls, "~> 0.8", only: :test}
     ]
   end
