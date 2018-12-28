@@ -4,3 +4,6 @@ elixir:
 otp_release:
   - 21.0
 sudo: false
+script:
+  - mix format --check-formatted
+  - mix test
