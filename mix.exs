@@ -58,7 +58,7 @@ defmodule Membrane.Element.RTP.MixProject do
 
   defp deps do
     [
-      {:membrane_core, "~> 0.2.1"},
+      {:membrane_core, "~> 0.3"},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:membrane_caps_rtp, github: "membraneframework/membrane-caps-rtp"},
