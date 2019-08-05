@@ -4,7 +4,7 @@ defmodule Membrane.Element.RTP.Parser do
   See `options/0` for available options
   """
 
-  use Membrane.Element.Base.Filter
+  use Membrane.Filter
 
   alias Membrane.Buffer
   alias Membrane.Caps.RTP, as: Caps
