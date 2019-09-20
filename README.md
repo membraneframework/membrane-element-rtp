@@ -1,5 +1,7 @@
 # Membrane Multimedia Framework: RTP
 
+[![CircleCI](https://circleci.com/gh/membraneframework/membrane-element-rtp.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane-element-rtp)
+
 This package provides elements that can be used to parse RTP packets.
 
 It is part of [Membrane Multimedia Framework](https://membraneframework.org).

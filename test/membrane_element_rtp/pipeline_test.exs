@@ -1,10 +1,11 @@
 defmodule Membrane.Element.RTP.PipelineTest do
   use ExUnit.Case
 
+  import Membrane.Testing.Assertions
+
   alias Membrane.Buffer
   alias Membrane.Element.RTP.{Parser, SamplePacket}
-  alias Membrane.Pipeline
-  alias Membrane.Testing
+  alias Membrane.Testing.{Source, Pipeline, Sink}
 
   @buffer_receive_timeout 1000
 
@@ -13,19 +14,18 @@ defmodule Membrane.Element.RTP.PipelineTest do
     test_data = SamplePacket.fake_packet_list(test_data_base)
 
     {:ok, pipeline} =
-      Pipeline.start_link(Testing.Pipeline, %Testing.Pipeline.Options{
+      Pipeline.start_link(%Pipeline.Options{
         elements: [
-          source: %Testing.DataSource{data: test_data},
+          source: %Source{output: test_data},
           parser: Parser,
-          sink: %Testing.Sink{target: self()}
-        ],
-        test_process: self()
+          sink: %Sink{}
+        ]
       })
 
     Pipeline.play(pipeline)
 
     Enum.each(test_data_base, fn _ ->
-      assert_receive %Buffer{}, @buffer_receive_timeout
+      assert_sink_buffer(pipeline, :sink, %Buffer{}, @buffer_receive_timeout)
     end)
   end
 end
