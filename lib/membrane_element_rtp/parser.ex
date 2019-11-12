@@ -11,7 +11,7 @@ defmodule Membrane.Element.RTP.Parser do
   alias Membrane.Element.Action
   alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder}
 
-  @metadata_fields [:timestamp, :sequence_number]
+  @metadata_fields [:timestamp, :sequence_number, :ssrc, :payload_type]
 
   def_output_pad :output,
     caps: Caps
