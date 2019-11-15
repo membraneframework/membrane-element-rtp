@@ -16,7 +16,14 @@ defmodule Membrane.Element.RTP.ParserTest do
                    buffer:
                      {:output,
                       %Membrane.Buffer{
-                        metadata: %{rtp: %{sequence_number: 3983, timestamp: 1_653_702_647}},
+                        metadata: %{
+                          rtp: %{
+                            sequence_number: 3983,
+                            timestamp: 1_653_702_647,
+                            payload_type: 14,
+                            ssrc: 3_919_876_492
+                          }
+                        },
                         payload: SamplePacket.sample_packet_payload()
                       }}
                  ]}, %Membrane.Element.RTP.Parser.State{raw_payload_type: 14}}
@@ -32,7 +39,14 @@ defmodule Membrane.Element.RTP.ParserTest do
                    buffer:
                      {:output,
                       %Membrane.Buffer{
-                        metadata: %{rtp: %{sequence_number: 3983, timestamp: 1_653_702_647}},
+                        metadata: %{
+                          rtp: %{
+                            sequence_number: 3983,
+                            timestamp: 1_653_702_647,
+                            payload_type: 14,
+                            ssrc: 3_919_876_492
+                          }
+                        },
                         payload: SamplePacket.sample_packet_payload()
                       }}
                  ]}, %Membrane.Element.RTP.Parser.State{raw_payload_type: 14}}
