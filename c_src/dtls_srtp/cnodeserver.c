@@ -120,6 +120,7 @@ int handle_message(int ei_fd, char *node_name, erlang_msg emsg,
   }
 
   return dtls_srtp_server(cert_file, pkey_file, local_addr, (short) local_port, ei_fd, &emsg.from);
+}
 
 handle_message_error:
   ei_x_free(&out_buf);
