@@ -254,7 +254,7 @@ void forward_key_ptrs(int ei_fd, erlang_pid * to, struct srtp_key_ptrs * ptrs) {
     encode_pair_atom_binary(&out_buff, "localkey", ptrs->localkey, MASTER_KEY_LEN);
     encode_pair_atom_binary(&out_buff, "remotekey", ptrs->remotekey, MASTER_KEY_LEN);
     encode_pair_atom_binary(&out_buff, "localsalt", ptrs->localsalt, MASTER_SALT_LEN);
-    encode_pair_atom_binary(&out_buff, "remotesalt", ptrs->remotesal, MASTER_SALT_LEN);
+    encode_pair_atom_binary(&out_buff, "remotesalt", ptrs->remotesalt, MASTER_SALT_LEN);
 
     ei_send(ei_fd, to, out_buff.buff, out_buff.index);
 }
@@ -384,7 +384,7 @@ int get_ssl_ctx(const char * certfile, const char * pkeyfile, SSL_CTX ** ssl_ctx
         return -1;
     }
 
-    SLL_CTX * result = dtls_ctx_init(DTLS_VERIFY_FINGERPRINT, NULL, &cfg);
+    SSL_CTX * result = dtls_ctx_init(DTLS_VERIFY_FINGERPRINT, NULL, &cfg);
     if (result == NULL) {
         perror("Fail to generate SSL_CTX!\n");
         return -1;
@@ -398,14 +398,14 @@ int get_sock_fd(const char * local_addr, in_port_t local_port, fd_t * sock_fd) {
     uaddr luaddr;
     if (!makesockaddr(local_addr, local_port, &luaddr)) {
         perror("Local address is invalid!\n");
-        return -1
+        return -1;
     }
 
     *sock_fd = prepare_udp_socket(&luaddr);
     return 0;
 }
 
-int dtls_strp_server(const char * cert_file, const char * pkey_file, const char * local_addr, in_port_t local_port,
+int dtls_srtp_server(const char * cert_file, const char * pkey_file, const char * local_addr, in_port_t local_port,
             int ei_fd, erlang_pid * to) {
     if (init() < 0) {
         return 1;
@@ -413,9 +413,8 @@ int dtls_strp_server(const char * cert_file, const char * pkey_file, const char 
 
     SSL_CTX * ssl_ctx;
     fd_t sock_fd;
-    uaddr ruaddr;
 
-    if (get_ssl_ctx(certfile, pkeyfile, &ssl_ctx) < 0) {
+    if (get_ssl_ctx(cert_file, pkey_file, &ssl_ctx) < 0) {
         return -1;
     }
 
@@ -423,6 +422,6 @@ int dtls_strp_server(const char * cert_file, const char * pkey_file, const char 
         return -1;
     }
 
-    int res = mainloop(sock_fd, ssl_ctx, &timeout, &exitflag, NULL, ei_fd, to)
+    int res = mainloop(sock_fd, ssl_ctx, &timeout, &exitflag, NULL, ei_fd, to);
     return res;
 }

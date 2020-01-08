@@ -19,6 +19,7 @@ defmodule Membrane.Element.RTP.MixProject do
       homepage_url: "https://membraneframework.org",
       test_coverage: [tool: ExCoveralls],
       deps: deps(),
+      compilers: [:bundlex | Mix.compilers()],
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.detail": :test,
@@ -56,13 +57,18 @@ defmodule Membrane.Element.RTP.MixProject do
     ]
   end
 
+  defp compilers() do
+    [:bundlex] ++ Mix.compilers
+  end
+
   defp deps do
     [
       {:membrane_core, "~> 0.5.0"},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:membrane_caps_rtp, "~> 0.1"},
-      {:excoveralls, "~> 0.8", only: :test}
+      {:excoveralls, "~> 0.8", only: :test},
+      {:bundlex, "~> 0.2.6"},
     ]
   end
 end

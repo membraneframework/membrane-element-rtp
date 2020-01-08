@@ -4,10 +4,14 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+
 #ifndef _REENTRANT
 #define _REENTRANT // For some reason __erl_errno is undefined unless _REENTRANT
                    // is defined
 #endif
+// #include "handshaker.h"
 #include "handshaker.h"
 #include <ei_connect.h>
 #include <erl_interface.h>
@@ -78,11 +82,10 @@ int parse_long_arg(const char * buf, int * index, const char * atom_name, long *
     if (ei_decode_atom(buf, index, fun) || strcmp(fun, atom_name) != 0) {
         return -1;
     }
-    return ei_decode_long(buf, index, dest)
+    return ei_decode_long(buf, index, dest);
 }
 
-int handle_message(int ei_fd, char *node_name, erlang_msg emsg,
-                   ei_x_buff *in_buf, State *state) {
+int handle_message(int ei_fd, erlang_msg emsg, ei_x_buff *in_buf) {
   ei_x_buff out_buf;
   ei_x_new_with_version(&out_buf);
   int decode_idx = 0;
@@ -98,14 +101,13 @@ int handle_message(int ei_fd, char *node_name, erlang_msg emsg,
     goto handle_message_error;
   }
 
-  int res = 1;
   char cert_file[256];
   if (parse_string_arg(in_buf->buff, &decode_idx, "cert_file", cert_file)) {
       goto handle_message_error;
   }
 
   char pkey_file[256];
-  if (parse_string_arg(in_buff->buff, &decode_idx, "pkey_file", pkey_file)) {
+  if (parse_string_arg(in_buf->buff, &decode_idx, "pkey_file", pkey_file)) {
       goto handle_message_error;
   }
 
@@ -115,12 +117,11 @@ int handle_message(int ei_fd, char *node_name, erlang_msg emsg,
   }
 
   long local_port;
-  if (parse_long_arg(in->buff, &decode_idx, "local_port", local_port)) {
+  if (parse_long_arg(in_buf->buff, &decode_idx, "local_port", &local_port)) {
       goto handle_message_error;
   }
 
   return dtls_srtp_server(cert_file, pkey_file, local_addr, (short) local_port, ei_fd, &emsg.from);
-}
 
 handle_message_error:
   ei_x_free(&out_buf);
@@ -128,12 +129,12 @@ handle_message_error:
   return 1;
 }
 
-int receive(int ei_fd, char *node_name, State *state) {
+int receive(int ei_fd) {
   ei_x_buff in_buf;
   ei_x_new(&in_buf);
   erlang_msg emsg;
   int res = 0;
-  event_loop();
+  // event_loop();
   switch (ei_xreceive_msg_tmo(ei_fd, &emsg, &in_buf, 100)) {
   case ERL_TICK:
     break;
@@ -142,7 +143,7 @@ int receive(int ei_fd, char *node_name, State *state) {
     break;
   default:
     if (emsg.msgtype == ERL_REG_SEND &&
-        handle_message(ei_fd, node_name, emsg, &in_buf, state)) {
+        handle_message(ei_fd, emsg, &in_buf)) {
       res = -1;
     }
     break;
@@ -215,12 +216,10 @@ int main(int argc, char **argv) {
   }
   DEBUG("accepted %s", conn.nodename);
 
-  State state;
-
   int res = 0;
   int cont = 1;
   while (cont) {
-    switch (receive(ei_fd, node_name, &state)) {
+    switch (receive(ei_fd)) {
     case 0:
       break;
     case 1:

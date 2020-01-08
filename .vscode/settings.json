@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "handshaker.h": "c"
+        "handshaker.h": "c",
+        "dsink_udp.h": "c"
     }
 }
