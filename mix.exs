@@ -58,7 +58,7 @@ defmodule Membrane.Element.RTP.MixProject do
   end
 
   defp compilers() do
-    [:bundlex] ++ Mix.compilers
+    [:bundlex] ++ Mix.compilers()
   end
 
   defp deps do
@@ -68,7 +68,7 @@ defmodule Membrane.Element.RTP.MixProject do
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:membrane_caps_rtp, "~> 0.1"},
       {:excoveralls, "~> 0.8", only: :test},
-      {:bundlex, "~> 0.2.6"},
+      {:bundlex, "~> 0.2.6"}
     ]
   end
 end
