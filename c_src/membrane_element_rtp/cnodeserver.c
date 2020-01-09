@@ -237,5 +237,3 @@ int main(int argc, char **argv) {
   close(ei_fd);
   return res;
 }
-
-// TODO: add initial response to client

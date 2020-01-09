@@ -232,7 +232,7 @@ fd_t prepare_udp_socket(const uaddr *addr) {
 void prepare_ei_x_buff(ei_x_buff * buff) {
     ei_x_new_with_version(buff);
     ei_x_encode_tuple_header(buff, 2);
-    ei_x_encode_atom(buff, "cnode")
+    ei_x_encode_atom(buff, "cnode");
 }
 
 void encode_pair_atom_binary(ei_x_buff * buff, const char * atom_name, const uint8_t * binary, 
