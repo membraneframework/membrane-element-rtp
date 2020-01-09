@@ -16,7 +16,8 @@ defmodule Membrane.Element.RTP.SRTP.Source do
                 description: "Path to file with key"
               ],
               local_addr: [
-                type: :string,
+                type: :ip_address,
+                spec: :inet.ip_address(),
                 description: """
                 An IP Address on which SRTP server will listen
                 """
@@ -36,12 +37,13 @@ defmodule Membrane.Element.RTP.SRTP.Source do
   @impl true
   def handle_init(%__MODULE__{} = opts) do
     {:ok, cnode} = CNode.start_link(:handshaker)
+    addr_as_string = opts.local_addr |> Tuple.to_list |> Enum.join(".")
 
     state = %{
       cert_file: opts.cert_file,
       pkey_file: opts.pkey_file,
       local_port: opts.local_port,
-      local_addr: opts.local_addr,
+      local_addr: addr_as_string,
       cnode: cnode
     }
 
@@ -57,13 +59,14 @@ defmodule Membrane.Element.RTP.SRTP.Source do
       {:local_port, state.local_port}
     }
 
-    {:cnode, :ok} = state.cnode |> Cnode.call(msg)
+    {cnode, :ok} = state.cnode |> CNode.call(msg)
 
     {:ok, state}
   end
 
   @impl true
-  def handle_other({:cnode, packet}, _ctx, state) do
+  @spec handle_other({CNode.t(), any}, any, any) :: any
+  def handle_other({cnode, packet}, _ctx, state) do
     buff_cntn = %Buffer{payload: packet}
     action = [buffer: {:output, buff_cntn}]
     {{:ok, action}, state}
