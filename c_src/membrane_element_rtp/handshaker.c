@@ -229,9 +229,14 @@ fd_t prepare_udp_socket(const uaddr *addr) {
   return fd;
 }
 
+void prepare_ei_x_buff(ei_x_buff * buff) {
+    ei_x_new_with_version(buff);
+    ei_x_encode_tuple_header(buff, 2);
+    ei_x_encode_atom(buff, "cnode")
+}
+
 void encode_pair_atom_binary(ei_x_buff * buff, const char * atom_name, const uint8_t * binary, 
             int binary_len) {
-    
     ei_x_encode_tuple_header(buff, 2);
     ei_x_encode_atom(buff, atom_name);
     ei_x_encode_binary(buff, (const void *) binary, binary_len);
@@ -239,7 +244,7 @@ void encode_pair_atom_binary(ei_x_buff * buff, const char * atom_name, const uin
 
 void forward_packet(int ei_fd, erlang_pid * to, uint8_t * packet, unsigned int packet_len) {
     ei_x_buff out_buff;
-    ei_x_new_with_version(&out_buff);
+    prepare_ei_x_buff(&out_buff);
 
     encode_pair_atom_binary(&out_buff, "packet", packet, packet_len);
 
@@ -248,13 +253,22 @@ void forward_packet(int ei_fd, erlang_pid * to, uint8_t * packet, unsigned int p
 
 void forward_key_ptrs(int ei_fd, erlang_pid * to, struct srtp_key_ptrs * ptrs) {
     ei_x_buff out_buff;
-    ei_x_new_with_version(&out_buff);
+    prepare_ei_x_buff(&out_buff);
 
     ei_x_encode_tuple_header(&out_buff, 4);
     encode_pair_atom_binary(&out_buff, "localkey", ptrs->localkey, MASTER_KEY_LEN);
     encode_pair_atom_binary(&out_buff, "remotekey", ptrs->remotekey, MASTER_KEY_LEN);
     encode_pair_atom_binary(&out_buff, "localsalt", ptrs->localsalt, MASTER_SALT_LEN);
     encode_pair_atom_binary(&out_buff, "remotesalt", ptrs->remotesalt, MASTER_SALT_LEN);
+
+    ei_send(ei_fd, to, out_buff.buff, out_buff.index);
+}
+
+void respond_to_initial_msg(int ei_fd, erlang_pid * to) {
+    ei_x_buff out_buff;
+    prepare_ei_x_buff(&out_buff);
+
+    ei_x_encode_atom(&out_buff, "ok");
 
     ei_send(ei_fd, to, out_buff.buff, out_buff.index);
 }
@@ -421,6 +435,8 @@ int dtls_srtp_server(const char * cert_file, const char * pkey_file, const char 
     if (get_sock_fd(local_addr, local_port, &sock_fd) < 0) {
         return -1;
     }
+    
+    respond_to_initial_msg(ei_fd, to);
 
     int res = mainloop(sock_fd, ssl_ctx, &timeout, &exitflag, NULL, ei_fd, to);
     return res;
