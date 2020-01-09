@@ -37,7 +37,7 @@ defmodule Membrane.Element.RTP.SRTP.Source do
   @impl true
   def handle_init(%__MODULE__{} = opts) do
     {:ok, cnode} = CNode.start_link(:handshaker)
-    addr_as_string = opts.local_addr |> Tuple.to_list |> Enum.join(".")
+    addr_as_string = opts.local_addr |> Tuple.to_list() |> Enum.join(".")
 
     state = %{
       cert_file: opts.cert_file,
