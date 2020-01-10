@@ -36,32 +36,29 @@ defmodule Membrane.Element.RTP.SRTP.Source do
 
   @impl true
   def handle_init(%__MODULE__{} = opts) do
-    {:ok, cnode} = CNode.start_link(:handshaker)
-    addr_as_string = opts.local_addr |> Tuple.to_list() |> Enum.join(".")
-
     state = %{
       cert_file: opts.cert_file,
       pkey_file: opts.pkey_file,
       local_port: opts.local_port,
-      local_addr: addr_as_string,
-      cnode: cnode
+      local_addr: opts.local_addr,
+      cnode: nil
     }
-
     {:ok, state}
   end
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
+    {:ok, cnode} = CNode.start_link(:handshaker)
     msg = {
-      {:cert_file, state.cert_file},
-      {:pkey_file, state.pkey_file},
-      {:local_addr, state.local_addr},
-      {:local_port, state.local_port}
+      state.cert_file,
+      state.pkey_file,
+      state.local_addr |> Tuple.to_list() |> Enum.join("."),
+      state.local_port
     }
 
-    {cnode, :ok} = state.cnode |> CNode.call(msg)
+    {node, :ok} = cnode |> CNode.call(msg)
 
-    {:ok, state}
+    {:ok, %{state| cnode: cnode}}
   end
 
   @impl true
@@ -71,4 +68,16 @@ defmodule Membrane.Element.RTP.SRTP.Source do
     action = [buffer: {:output, buff_cntn}]
     {{:ok, action}, state}
   end
+
+#   remove it before commiting
+  def debug_receive() do
+    receive do
+        sth -> 
+            IO.puts 'We recieved:\n'
+             sth
+        after 1000 ->
+            IO.puts 'tajmaut\n'
+    end
+  end   
+  
 end

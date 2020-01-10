@@ -6,12 +6,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #ifndef _REENTRANT
 #define _REENTRANT // For some reason __erl_errno is undefined unless _REENTRANT
                    // is defined
 #endif
-
 #include "handshaker.h"
 #include <ei_connect.h>
 #include <erl_interface.h>
@@ -57,35 +57,23 @@ int listen_sock(int *listen_fd, int *port) {
   return 0;
 }
 
-int parse_string_arg(const char * buf, int * index, const char * atom_name, char * dest) {
-    int arity;
-    ei_decode_tuple_header(buf, index, &arity);
-    if (arity < 2) {
-        return -1;
-    }
 
-    char fun[256];
-    if (ei_decode_atom(buf, index, fun) || strcmp(fun, atom_name) != 0) {
-        return -1;
-    }
-    return ei_decode_string(buf, index, dest);
+int parse_string_arg(const char * buf, int * index, char * dest) {
+  long arg_len;
+  int res = ei_decode_binary(buf, index, (void *) dest, &arg_len);
+
+  if (res < 0) {
+    fprintf(stderr, "string decoding failed %d %d %d\n", res, errno, erl_errno);
+
+    fflush(stderr);
+    return -1;
+  }
+
+  dest[arg_len] = 0;
+  return res;
 }
 
-int parse_long_arg(const char * buf, int * index, const char * atom_name, long * dest) {
-    int arity;
-    ei_decode_tuple_header(buf, index, &arity);
-    if (arity < 2) {
-        return -1;
-    }
-
-    char fun[256];
-    if (ei_decode_atom(buf, index, fun) || strcmp(fun, atom_name) != 0) {
-        return -1;
-    }
-    return ei_decode_long(buf, index, dest);
-}
-
-int handle_message(int ei_fd, erlang_msg emsg, ei_x_buff *in_buf) {
+int handle_message(int ei_fd, const char * node_name, erlang_msg emsg, ei_x_buff *in_buf) {
   ei_x_buff out_buf;
   ei_x_new_with_version(&out_buf);
   int decode_idx = 0;
@@ -96,32 +84,29 @@ int handle_message(int ei_fd, erlang_msg emsg, ei_x_buff *in_buf) {
   if (ei_decode_version(in_buf->buff, &decode_idx, &version)) {
     goto handle_message_error;
   }
+
   ei_decode_tuple_header(in_buf->buff, &decode_idx, &arity);
-  if (ei_decode_atom(in_buf->buff, &decode_idx, fun)) {
-    goto handle_message_error;
-  }
-
-  char cert_file[256];
-  if (parse_string_arg(in_buf->buff, &decode_idx, "cert_file", cert_file)) {
+  char cert_file[8192];
+  if (parse_string_arg(in_buf->buff, &decode_idx, cert_file)) {
       goto handle_message_error;
   }
 
-  char pkey_file[256];
-  if (parse_string_arg(in_buf->buff, &decode_idx, "pkey_file", pkey_file)) {
+  char pkey_file[8192];
+  if (parse_string_arg(in_buf->buff, &decode_idx, pkey_file)) {
       goto handle_message_error;
   }
-
-  char local_addr[256];
-  if (parse_string_arg(in_buf->buff, &decode_idx, "local_addr", local_addr)) {
+  
+  char local_addr[8192];
+  if (parse_string_arg(in_buf->buff, &decode_idx, local_addr)) {
       goto handle_message_error;
   }
 
   long local_port;
-  if (parse_long_arg(in_buf->buff, &decode_idx, "local_port", &local_port)) {
+  if (ei_decode_long(in_buf->buff, &decode_idx, &local_port)) {
       goto handle_message_error;
-  }
+  }    
 
-  return dtls_srtp_server(cert_file, pkey_file, local_addr, (short) local_port, ei_fd, &emsg.from);
+  return dtls_srtp_server(cert_file, pkey_file, local_addr, (short) local_port, ei_fd, &emsg.from, node_name);
 
 handle_message_error:
   ei_x_free(&out_buf);
@@ -129,7 +114,7 @@ handle_message_error:
   return 1;
 }
 
-int receive(int ei_fd) {
+int receive(int ei_fd, const char * node_name) {
   ei_x_buff in_buf;
   ei_x_new(&in_buf);
   erlang_msg emsg;
@@ -143,7 +128,7 @@ int receive(int ei_fd) {
     break;
   default:
     if (emsg.msgtype == ERL_REG_SEND &&
-        handle_message(ei_fd, emsg, &in_buf)) {
+        handle_message(ei_fd, node_name, emsg, &in_buf)) {
       res = -1;
     }
     break;
@@ -219,7 +204,7 @@ int main(int argc, char **argv) {
   int res = 0;
   int cont = 1;
   while (cont) {
-    switch (receive(ei_fd)) {
+    switch (receive(ei_fd, node_name)) {
     case 0:
       break;
     case 1:

@@ -229,8 +229,12 @@ fd_t prepare_udp_socket(const uaddr *addr) {
   return fd;
 }
 
-void prepare_ei_x_buff(ei_x_buff * buff) {
+void prepare_ei_x_buff(ei_x_buff * buff, const char * node_name) {
     ei_x_new_with_version(buff);
+
+    ei_x_encode_tuple_header(buff, 2);
+    ei_x_encode_atom(buff, node_name);
+
     ei_x_encode_tuple_header(buff, 2);
     ei_x_encode_atom(buff, "cnode");
 }
@@ -242,18 +246,18 @@ void encode_pair_atom_binary(ei_x_buff * buff, const char * atom_name, const uin
     ei_x_encode_binary(buff, (const void *) binary, binary_len);
 }
 
-void forward_packet(int ei_fd, erlang_pid * to, uint8_t * packet, unsigned int packet_len) {
+void forward_packet(int ei_fd, erlang_pid * to, const char * node_name, uint8_t * packet, unsigned int packet_len) {
     ei_x_buff out_buff;
-    prepare_ei_x_buff(&out_buff);
+    prepare_ei_x_buff(&out_buff, node_name);
 
     encode_pair_atom_binary(&out_buff, "packet", packet, packet_len);
 
     ei_send(ei_fd, to, out_buff.buff, out_buff.index);
 }
 
-void forward_key_ptrs(int ei_fd, erlang_pid * to, struct srtp_key_ptrs * ptrs) {
+void forward_key_ptrs(int ei_fd, erlang_pid * to, const char * node_name, struct srtp_key_ptrs * ptrs) {
     ei_x_buff out_buff;
-    prepare_ei_x_buff(&out_buff);
+    prepare_ei_x_buff(&out_buff, node_name);
 
     ei_x_encode_tuple_header(&out_buff, 4);
     encode_pair_atom_binary(&out_buff, "localkey", ptrs->localkey, MASTER_KEY_LEN);
@@ -264,9 +268,9 @@ void forward_key_ptrs(int ei_fd, erlang_pid * to, struct srtp_key_ptrs * ptrs) {
     ei_send(ei_fd, to, out_buff.buff, out_buff.index);
 }
 
-void respond_to_initial_msg(int ei_fd, erlang_pid * to) {
+void respond_to_initial_msg(int ei_fd, erlang_pid * to, const char * node_name) {
     ei_x_buff out_buff;
-    prepare_ei_x_buff(&out_buff);
+    prepare_ei_x_buff(&out_buff, node_name);
 
     ei_x_encode_atom(&out_buff, "ok");
 
@@ -274,7 +278,7 @@ void respond_to_initial_msg(int ei_fd, erlang_pid * to) {
 }
 
 int mainloop(fd_t fd, SSL_CTX *cfg, const struct timeval *timeout,
-             const int *toexit, const uaddr *peer, int ei_fd, erlang_pid * to) {
+             const int *toexit, const uaddr *peer, int ei_fd, erlang_pid * to, const char * node_name) {
 
   int ret = EXIT_FAILURE;
   // the side without a valid peer is considered the passive side.
@@ -344,7 +348,7 @@ int mainloop(fd_t fd, SSL_CTX *cfg, const struct timeval *timeout,
           }
           srtp_key_ptrs ptrs = {0, 0, 0, 0};
           srtp_key_material_extract(km, &ptrs);
-          forward_key_ptrs(ei_fd, to, &ptrs);
+          forward_key_ptrs(ei_fd, to, node_name, &ptrs);
           fprintkeymat(stdout, &ptrs);
           key_material_free(km);
           if (peer == NULL) {
@@ -357,7 +361,7 @@ int mainloop(fd_t fd, SSL_CTX *cfg, const struct timeval *timeout,
           }
         }
       } else {
-        forward_packet(ei_fd, to, payload, RTP_PACKET_LEN);
+        forward_packet(ei_fd, to, node_name, payload, RTP_PACKET_LEN);
       }
     } else {
       // no packet arrived, selected() returns for timeout.
@@ -385,6 +389,7 @@ int get_ssl_ctx(const char * certfile, const char * pkeyfile, SSL_CTX ** ssl_ctx
     BIO_free(fb);
     if (cfg.cert == NULL) {
         perror("Fail to parse certificate file!\n");
+        fflush(stderr);
         return -1;
     } else {
         fprintfinger(stdout, "Fingerprint of local cert is ", cfg.cert);
@@ -395,12 +400,14 @@ int get_ssl_ctx(const char * certfile, const char * pkeyfile, SSL_CTX ** ssl_ctx
     BIO_free(fb);
     if (cfg.pkey == NULL) {
         perror("Fail to parse private key file!\n");
+        fflush(stderr);
         return -1;
     }
 
     SSL_CTX * result = dtls_ctx_init(DTLS_VERIFY_FINGERPRINT, NULL, &cfg);
     if (result == NULL) {
         perror("Fail to generate SSL_CTX!\n");
+        fflush(stderr);
         return -1;
     }
 
@@ -412,6 +419,7 @@ int get_sock_fd(const char * local_addr, in_port_t local_port, fd_t * sock_fd) {
     uaddr luaddr;
     if (!makesockaddr(local_addr, local_port, &luaddr)) {
         perror("Local address is invalid!\n");
+        fflush(stderr);
         return -1;
     }
 
@@ -420,7 +428,8 @@ int get_sock_fd(const char * local_addr, in_port_t local_port, fd_t * sock_fd) {
 }
 
 int dtls_srtp_server(const char * cert_file, const char * pkey_file, const char * local_addr, in_port_t local_port,
-            int ei_fd, erlang_pid * to) {
+            int ei_fd, erlang_pid * to, const char * node_name) {
+
     if (init() < 0) {
         return 1;
     }
@@ -436,8 +445,8 @@ int dtls_srtp_server(const char * cert_file, const char * pkey_file, const char 
         return -1;
     }
     
-    respond_to_initial_msg(ei_fd, to);
+    respond_to_initial_msg(ei_fd, to, node_name);
 
-    int res = mainloop(sock_fd, ssl_ctx, &timeout, &exitflag, NULL, ei_fd, to);
+    int res = mainloop(sock_fd, ssl_ctx, &timeout, &exitflag, NULL, ei_fd, to, node_name);
     return res;
 }
