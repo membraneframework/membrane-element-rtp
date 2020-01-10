@@ -43,12 +43,14 @@ defmodule Membrane.Element.RTP.SRTP.Source do
       local_addr: opts.local_addr,
       cnode: nil
     }
+
     {:ok, state}
   end
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
     {:ok, cnode} = CNode.start_link(:handshaker)
+
     msg = {
       state.cert_file,
       state.pkey_file,
@@ -58,7 +60,7 @@ defmodule Membrane.Element.RTP.SRTP.Source do
 
     {node, :ok} = cnode |> CNode.call(msg)
 
-    {:ok, %{state| cnode: cnode}}
+    {:ok, %{state | cnode: cnode}}
   end
 
   @impl true
@@ -68,16 +70,4 @@ defmodule Membrane.Element.RTP.SRTP.Source do
     action = [buffer: {:output, buff_cntn}]
     {{:ok, action}, state}
   end
-
-#   remove it before commiting
-  def debug_receive() do
-    receive do
-        sth -> 
-            IO.puts 'We recieved:\n'
-             sth
-        after 1000 ->
-            IO.puts 'tajmaut\n'
-    end
-  end   
-  
 end
