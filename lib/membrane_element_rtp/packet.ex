@@ -3,15 +3,17 @@ defmodule Membrane.Element.RTP.Packet do
   Describes an RTP packet.
   """
 
-  alias Membrane.Element.RTP.Header
+  alias Membrane.Element.RTP.{Header, Suffix}
 
   @type t :: %__MODULE__{
           header: Header.t(),
-          payload: binary()
+          payload: binary(),
+          suffix: Suffix.t()
         }
 
   defstruct [
     :header,
-    :payload
+    :payload,
+    :suffix
   ]
 end

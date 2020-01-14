@@ -9,9 +9,19 @@ defmodule Membrane.Element.RTP.Parser do
   alias Membrane.Buffer
   alias Membrane.Caps.RTP, as: Caps
   alias Membrane.Element.Action
-  alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder}
+  alias Membrane.Element.RTP.Secure.Context
+  alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder, Secure}
 
   @metadata_fields [:timestamp, :sequence_number, :ssrc, :payload_type]
+
+  def_options context_map: [
+                spec: %{Context.id() => Context.t()},
+                default: %{}
+              ],
+              secure: [
+                spec: boolean(),
+                default: false
+              ]
 
   def_output_pad :output,
     caps: Caps
@@ -22,21 +32,31 @@ defmodule Membrane.Element.RTP.Parser do
 
   defmodule State do
     @moduledoc false
-    defstruct raw_payload_type: nil
+    defstruct raw_payload_type: nil,
+              secure: false,
+              context_map: nil
 
     @type t :: %__MODULE__{
-            raw_payload_type: Caps.raw_payload_type() | nil
+            raw_payload_type: Caps.raw_payload_type() | nil,
+            secure: boolean(),
+            context_map: nil | %{Context.id() => Context.t()}
           }
   end
 
   @impl true
-  def handle_init(_) do
-    {:ok, %State{}}
+  def handle_init(opts) do
+    {:ok, %State{secure: opts.secure, context_map: opts.context_map}}
+  end
+
+  @impl
+  def handle_event(_, %NewContext{context_id: id, context: ctx} = event, _, state) do
+    state = put_in(state, [:context_map, id], ctx)
+    {:ok, state}
   end
 
   @impl true
   def handle_process(:input, %Buffer{payload: buffer_payload} = buffer, _ctx, state) do
-    with {:ok, %Packet{} = packet} <- PacketParser.parse_packet(buffer_payload),
+    with {:ok, {packet, state}} <- process_payload(buffer_payload, state),
          {commands, state} <- build_commands(packet, buffer, state) do
       {{:ok, commands}, state}
     else
@@ -48,6 +68,21 @@ defmodule Membrane.Element.RTP.Parser do
   @impl true
   def handle_demand(:output, size, _unit, _ctx, state) do
     {{:ok, demand: {:input, size}}, state}
+  end
+
+  defp process_payload(payload, %State{secure: false} = state) do
+    with {:ok, packet} <- PacketParser.parse_packet(payload) do
+      {:ok, {packet, state}}
+    end
+  end
+
+  defp process_payload(buffer, %State{secure: true} = state) do
+    with {:ok, context, context_id} <- Secure.get_context(state.context_map, buffer.payload),
+         {:ok, packet, updates} <- Secure.process_buffer(context, buffer),
+         {:ok, context} <- Secure.update_context(context, updates) do
+      state = put_in(state, [:context_map, context_id], context)
+      {:ok, {packet, state}}
+    end
   end
 
   @spec build_commands(Packet.t(), Buffer.t(), State.t()) :: {[Action.t()], State.t()}

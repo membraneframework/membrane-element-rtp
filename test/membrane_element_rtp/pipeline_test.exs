@@ -17,7 +17,7 @@ defmodule Membrane.Element.RTP.PipelineTest do
       Pipeline.start_link(%Pipeline.Options{
         elements: [
           source: %Source{output: test_data},
-          parser: Parser,
+          parser: %Parser{secure: false},
           sink: %Sink{}
         ]
       })
