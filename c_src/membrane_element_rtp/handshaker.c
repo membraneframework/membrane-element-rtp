@@ -1,11 +1,11 @@
+#include "handshaker.h"
+#include "../../../../Documents/libdtlssrtp/dsink_udp.h"
+#include "../../../../Documents/libdtlssrtp/dtls_srtp.h"
 #include <arpa/inet.h>
-#include <sys/select.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <sys/select.h>
 #include <unistd.h>
-#include "../../../../Documents/libdtlssrtp/dtls_srtp.h"
-#include "../../../../Documents/libdtlssrtp/dsink_udp.h"
-#include "handshaker.h"
 
 #define RTP_PACKET_LEN 8192
 
@@ -61,7 +61,7 @@ static void setexit(int sig) {
 }
 
 // function to print binary blobs as comma-separated hexadecimals.
-int fprinthex(FILE *fp, const char *prefix, const void *b, size_t l) {
+static int fprinthex(FILE *fp, const char *prefix, const void *b, size_t l) {
   int totallen = 0;
   const char *finger = (const char *)b;
   const char *end = finger + l;
@@ -73,18 +73,8 @@ int fprinthex(FILE *fp, const char *prefix, const void *b, size_t l) {
   return totallen;
 }
 
-// function to specifically print content srtp_key_ptrs objects.
-int fprintkeymat(FILE *fp, const srtp_key_ptrs *ptrs) {
-  return fputs("********\n", fp) +
-         fprinthex(fp, "localkey", ptrs->localkey, MASTER_KEY_LEN) +
-         fprinthex(fp, "remotekey", ptrs->remotekey, MASTER_KEY_LEN) +
-         fprinthex(fp, "localsalt", ptrs->localsalt, MASTER_SALT_LEN) +
-         fprinthex(fp, "remotesalt", ptrs->remotesalt, MASTER_SALT_LEN) +
-         fputs("********\n", fp);
-}
-
 // function to specifically print fingerprint of X509 objects.
-int fprintfinger(FILE *fp, const char *prefix, const X509 *cert) {
+static int fprintfinger(FILE *fp, const char *prefix, const X509 *cert) {
   unsigned char fingerprint[EVP_MAX_MD_SIZE];
   unsigned int size = sizeof(fingerprint);
   memset(fingerprint, 0, sizeof(fingerprint));
@@ -96,7 +86,7 @@ int fprintfinger(FILE *fp, const char *prefix, const X509 *cert) {
   return fprinthex(fp, prefix, fingerprint, size);
 }
 
-int handle_socket_error(void) {
+static int handle_socket_error(void) {
   switch (errno) {
   case EINTR:
     /* Interrupted system call.
@@ -165,7 +155,7 @@ typedef union usockaddr {
  * function to convert ip address represent with strings to
  * uaddr objects.
  */
-bool makesockaddr(const char *straddr, in_port_t port, uaddr *addr) {
+static bool makesockaddr(const char *straddr, in_port_t port, uaddr *addr) {
   if ((straddr == NULL) || (strlen(straddr) == 0)) {
     addr->s6.sin6_family = AF_INET6;
 #ifdef HAVE_SIN6_LEN
@@ -208,7 +198,7 @@ socklen_t getsocklen(const uaddr *addr) {
   }
 }
 
-fd_t prepare_udp_socket(const uaddr *addr) {
+static fd_t prepare_udp_socket(const uaddr *addr) {
   fd_t fd = socket(addr->ss.ss_family, SOCK_DGRAM, 0);
   if (fd < 0) {
     return fd;
@@ -229,56 +219,60 @@ fd_t prepare_udp_socket(const uaddr *addr) {
   return fd;
 }
 
-void prepare_ei_x_buff(ei_x_buff * buff, const char * node_name) {
-    ei_x_new_with_version(buff);
-
-    ei_x_encode_tuple_header(buff, 2);
-    ei_x_encode_atom(buff, node_name);
-
-    ei_x_encode_tuple_header(buff, 2);
-    ei_x_encode_atom(buff, "cnode");
+static void prepare_ei_x_buff(ei_x_buff *buff, const char *node_name) {
+  ei_x_new_with_version(buff);
+  ei_x_encode_tuple_header(buff, 2);
+  ei_x_encode_atom(buff, node_name);
 }
 
-void encode_pair_atom_binary(ei_x_buff * buff, const char * atom_name, const uint8_t * binary, 
-            int binary_len) {
-    ei_x_encode_tuple_header(buff, 2);
-    ei_x_encode_atom(buff, atom_name);
-    ei_x_encode_binary(buff, (const void *) binary, binary_len);
+static void encode_pair_atom_binary(ei_x_buff *buff, const char *atom_name,
+                                    const uint8_t *binary, int binary_len) {
+  ei_x_encode_tuple_header(buff, 2);
+  ei_x_encode_atom(buff, atom_name);
+  ei_x_encode_binary(buff, (const void *)binary, binary_len);
 }
 
-void forward_packet(int ei_fd, erlang_pid * to, const char * node_name, uint8_t * packet, unsigned int packet_len) {
-    ei_x_buff out_buff;
-    prepare_ei_x_buff(&out_buff, node_name);
+static void forward_packet(int ei_fd, erlang_pid *to, const char *node_name,
+                           uint8_t *packet, unsigned int packet_len) {
+  ei_x_buff out_buff;
+  prepare_ei_x_buff(&out_buff, node_name);
 
-    encode_pair_atom_binary(&out_buff, "packet", packet, packet_len);
+  encode_pair_atom_binary(&out_buff, "packet", packet, packet_len);
 
-    ei_send(ei_fd, to, out_buff.buff, out_buff.index);
+  ei_send(ei_fd, to, out_buff.buff, out_buff.index);
 }
 
-void forward_key_ptrs(int ei_fd, erlang_pid * to, const char * node_name, struct srtp_key_ptrs * ptrs) {
-    ei_x_buff out_buff;
-    prepare_ei_x_buff(&out_buff, node_name);
+static void forward_key_ptrs(int ei_fd, erlang_pid *to, const char *node_name,
+                             struct srtp_key_ptrs *ptrs) {
+  ei_x_buff out_buff;
+  prepare_ei_x_buff(&out_buff, node_name);
 
-    ei_x_encode_tuple_header(&out_buff, 4);
-    encode_pair_atom_binary(&out_buff, "localkey", ptrs->localkey, MASTER_KEY_LEN);
-    encode_pair_atom_binary(&out_buff, "remotekey", ptrs->remotekey, MASTER_KEY_LEN);
-    encode_pair_atom_binary(&out_buff, "localsalt", ptrs->localsalt, MASTER_SALT_LEN);
-    encode_pair_atom_binary(&out_buff, "remotesalt", ptrs->remotesalt, MASTER_SALT_LEN);
+  ei_x_encode_tuple_header(&out_buff, 4);
+  encode_pair_atom_binary(&out_buff, "localkey", ptrs->localkey,
+                          MASTER_KEY_LEN);
+  encode_pair_atom_binary(&out_buff, "remotekey", ptrs->remotekey,
+                          MASTER_KEY_LEN);
+  encode_pair_atom_binary(&out_buff, "localsalt", ptrs->localsalt,
+                          MASTER_SALT_LEN);
+  encode_pair_atom_binary(&out_buff, "remotesalt", ptrs->remotesalt,
+                          MASTER_SALT_LEN);
 
-    ei_send(ei_fd, to, out_buff.buff, out_buff.index);
+  ei_send(ei_fd, to, out_buff.buff, out_buff.index);
 }
 
-void respond_to_initial_msg(int ei_fd, erlang_pid * to, const char * node_name) {
-    ei_x_buff out_buff;
-    prepare_ei_x_buff(&out_buff, node_name);
+static void respond_to_initial_msg(int ei_fd, erlang_pid *to,
+                                   const char *node_name) {
+  ei_x_buff out_buff;
+  prepare_ei_x_buff(&out_buff, node_name);
 
-    ei_x_encode_atom(&out_buff, "ok");
+  ei_x_encode_atom(&out_buff, "ok");
 
-    ei_send(ei_fd, to, out_buff.buff, out_buff.index);
+  ei_send(ei_fd, to, out_buff.buff, out_buff.index);
 }
 
-int mainloop(fd_t fd, SSL_CTX *cfg, const struct timeval *timeout,
-             const int *toexit, const uaddr *peer, int ei_fd, erlang_pid * to, const char * node_name) {
+static int mainloop(fd_t fd, SSL_CTX *cfg, const struct timeval *timeout,
+                    const int *toexit, const uaddr *peer, int ei_fd,
+                    erlang_pid *to, const char *node_name) {
 
   int ret = EXIT_FAILURE;
   // the side without a valid peer is considered the passive side.
@@ -330,8 +324,9 @@ int mainloop(fd_t fd, SSL_CTX *cfg, const struct timeval *timeout,
           {
             X509 *peercert = dtls_sess_get_pear_certificate(dtls);
             if (peercert == NULL) {
-              fprintf(stderr, "No certificate was provided by the peer on dtls "
-                              "session %p\n",
+              fprintf(stderr,
+                      "No certificate was provided by the peer on dtls "
+                      "session %p\n",
                       dtls);
               break;
             }
@@ -349,7 +344,6 @@ int mainloop(fd_t fd, SSL_CTX *cfg, const struct timeval *timeout,
           srtp_key_ptrs ptrs = {0, 0, 0, 0};
           srtp_key_material_extract(km, &ptrs);
           forward_key_ptrs(ei_fd, to, node_name, &ptrs);
-          fprintkeymat(stdout, &ptrs);
           key_material_free(km);
           if (peer == NULL) {
             // demo works as server.
@@ -372,81 +366,85 @@ int mainloop(fd_t fd, SSL_CTX *cfg, const struct timeval *timeout,
   return ret;
 }
 
-int init() {
-    int res = dtls_init_openssl();
-    if (!res) {
-        perror("OpenSSL initialization failed! quitting.\n");
-        return -1;
-    } 
-    return 0;
+static int init() {
+  int res = dtls_init_openssl();
+  if (!res) {
+    perror("OpenSSL initialization failed! quitting.\n");
+    return -1;
+  }
+  return 0;
 }
 
-int get_ssl_ctx(const char * certfile, const char * pkeyfile, SSL_CTX ** ssl_ctx) {
-    tlscfg cfg = {0, 0, SRTP_PROFILE_AES128_CM_SHA1_80, cipherlist, 0, 0};
+static int get_ssl_ctx(const char *certfile, const char *pkeyfile,
+                       SSL_CTX **ssl_ctx) {
+  tlscfg cfg = {0, 0, SRTP_PROFILE_AES128_CM_SHA1_80, cipherlist, 0, 0};
 
-    BIO * fb = BIO_new_file(certfile, "rb");
-    cfg.cert = PEM_read_bio_X509(fb, NULL, NULL, NULL);
-    BIO_free(fb);
-    if (cfg.cert == NULL) {
-        perror("Fail to parse certificate file!\n");
-        fflush(stderr);
-        return -1;
-    } else {
-        fprintfinger(stdout, "Fingerprint of local cert is ", cfg.cert);
-    }
+  BIO *fb = BIO_new_file(certfile, "rb");
+  cfg.cert = PEM_read_bio_X509(fb, NULL, NULL, NULL);
+  BIO_free(fb);
+  if (cfg.cert == NULL) {
+    perror("Fail to parse certificate file!\n");
+    fflush(stderr);
+    return -1;
+  } else {
+    fprintfinger(stdout, "Fingerprint of local cert is ", cfg.cert);
+  }
 
-    fb = BIO_new_file(pkeyfile, "rb");
-    cfg.pkey = PEM_read_bio_PrivateKey(fb, NULL, NULL, NULL);
-    BIO_free(fb);
-    if (cfg.pkey == NULL) {
-        perror("Fail to parse private key file!\n");
-        fflush(stderr);
-        return -1;
-    }
+  fb = BIO_new_file(pkeyfile, "rb");
+  cfg.pkey = PEM_read_bio_PrivateKey(fb, NULL, NULL, NULL);
+  BIO_free(fb);
+  if (cfg.pkey == NULL) {
+    perror("Fail to parse private key file!\n");
+    fflush(stderr);
+    return -1;
+  }
 
-    SSL_CTX * result = dtls_ctx_init(DTLS_VERIFY_FINGERPRINT, NULL, &cfg);
-    if (result == NULL) {
-        perror("Fail to generate SSL_CTX!\n");
-        fflush(stderr);
-        return -1;
-    }
+  SSL_CTX *result = dtls_ctx_init(DTLS_VERIFY_FINGERPRINT, NULL, &cfg);
+  if (result == NULL) {
+    perror("Fail to generate SSL_CTX!\n");
+    fflush(stderr);
+    return -1;
+  }
 
-    *ssl_ctx = result;
-    return 0;
+  *ssl_ctx = result;
+  return 0;
 }
 
-int get_sock_fd(const char * local_addr, in_port_t local_port, fd_t * sock_fd) {
-    uaddr luaddr;
-    if (!makesockaddr(local_addr, local_port, &luaddr)) {
-        perror("Local address is invalid!\n");
-        fflush(stderr);
-        return -1;
-    }
+static int get_sock_fd(const char *local_addr, in_port_t local_port,
+                       fd_t *sock_fd) {
+  uaddr luaddr;
+  if (!makesockaddr(local_addr, local_port, &luaddr)) {
+    perror("Local address is invalid!\n");
+    fflush(stderr);
+    return -1;
+  }
 
-    *sock_fd = prepare_udp_socket(&luaddr);
-    return 0;
+  *sock_fd = prepare_udp_socket(&luaddr);
+  return 0;
 }
 
-int dtls_srtp_server(const char * cert_file, const char * pkey_file, const char * local_addr, in_port_t local_port,
-            int ei_fd, erlang_pid * to, const char * node_name) {
+int dtls_srtp_server(const char *cert_file, const char *pkey_file,
+                     const char *local_addr, in_port_t local_port, int ei_fd,
+                     erlang_pid *to, const char *node_name) {
 
-    if (init() < 0) {
-        return 1;
-    }
+  if (init() < 0) {
+    return -1;
+  }
 
-    SSL_CTX * ssl_ctx;
-    fd_t sock_fd;
+  SSL_CTX *ssl_ctx;
+  fd_t sock_fd;
 
-    if (get_ssl_ctx(cert_file, pkey_file, &ssl_ctx) < 0) {
-        return -1;
-    }
+  if (get_ssl_ctx(cert_file, pkey_file, &ssl_ctx) < 0) {
+    return -1;
+  }
 
-    if (get_sock_fd(local_addr, local_port, &sock_fd) < 0) {
-        return -1;
-    }
-    
-    respond_to_initial_msg(ei_fd, to, node_name);
+  if (get_sock_fd(local_addr, local_port, &sock_fd) < 0) {
+    return -1;
+  }
 
-    int res = mainloop(sock_fd, ssl_ctx, &timeout, &exitflag, NULL, ei_fd, to, node_name);
-    return res;
+  respond_to_initial_msg(ei_fd, to, node_name);
+
+  int res = mainloop(sock_fd, ssl_ctx, &timeout, &exitflag, NULL, ei_fd, to,
+                     node_name);
+  return res;
 }

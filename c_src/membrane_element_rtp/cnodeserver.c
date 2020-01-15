@@ -1,12 +1,11 @@
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
 
 #ifndef _REENTRANT
 #define _REENTRANT // For some reason __erl_errno is undefined unless _REENTRANT
@@ -57,10 +56,9 @@ int listen_sock(int *listen_fd, int *port) {
   return 0;
 }
 
-
-int parse_string_arg(const char * buf, int * index, char * dest) {
+int parse_string_arg(const char *buf, int *index, char *dest) {
   long arg_len;
-  int res = ei_decode_binary(buf, index, (void *) dest, &arg_len);
+  int res = ei_decode_binary(buf, index, (void *)dest, &arg_len);
 
   if (res < 0) {
     fprintf(stderr, "string decoding failed %d %d %d\n", res, errno, erl_errno);
@@ -73,7 +71,17 @@ int parse_string_arg(const char * buf, int * index, char * dest) {
   return res;
 }
 
-int handle_message(int ei_fd, const char * node_name, erlang_msg emsg, ei_x_buff *in_buf) {
+int decode_message_type(const char *buff, int *decode_idx, char *dst) {
+  int arity;
+  if (ei_decode_tuple_header(buff, decode_idx, arity) || arity != 2) {
+    -1;
+  }
+
+  return ei_decode_atom(buff, decode_idx, dst);
+}
+
+int handle_message(int ei_fd, const char *node_name, erlang_msg emsg,
+                   ei_x_buff *in_buf) {
   ei_x_buff out_buf;
   ei_x_new_with_version(&out_buf);
   int decode_idx = 0;
@@ -85,28 +93,35 @@ int handle_message(int ei_fd, const char * node_name, erlang_msg emsg, ei_x_buff
     goto handle_message_error;
   }
 
+  char message_type[1024];
+  if (decode_message_type(in_buf->buff, &decode_idx, message_type) ||
+      strcmp(message_type, "handshake")) {
+    goto handle_message_error;
+  }
+
   ei_decode_tuple_header(in_buf->buff, &decode_idx, &arity);
   char cert_file[8192];
   if (parse_string_arg(in_buf->buff, &decode_idx, cert_file)) {
-      goto handle_message_error;
+    goto handle_message_error;
   }
 
   char pkey_file[8192];
   if (parse_string_arg(in_buf->buff, &decode_idx, pkey_file)) {
-      goto handle_message_error;
+    goto handle_message_error;
   }
-  
+
   char local_addr[8192];
   if (parse_string_arg(in_buf->buff, &decode_idx, local_addr)) {
-      goto handle_message_error;
+    goto handle_message_error;
   }
 
   long local_port;
   if (ei_decode_long(in_buf->buff, &decode_idx, &local_port)) {
-      goto handle_message_error;
-  }    
+    goto handle_message_error;
+  }
 
-  return dtls_srtp_server(cert_file, pkey_file, local_addr, (short) local_port, ei_fd, &emsg.from, node_name);
+  return dtls_srtp_server(cert_file, pkey_file, local_addr, (short)local_port,
+                          ei_fd, &emsg.from, node_name);
 
 handle_message_error:
   ei_x_free(&out_buf);
@@ -114,7 +129,7 @@ handle_message_error:
   return 1;
 }
 
-int receive(int ei_fd, const char * node_name) {
+int receive(int ei_fd, const char *node_name) {
   ei_x_buff in_buf;
   ei_x_new(&in_buf);
   erlang_msg emsg;
@@ -157,6 +172,7 @@ int main(int argc, char **argv) {
             argv[0]);
     return 1;
   }
+
   char host_name[256];
   strcpy(host_name, argv[1]);
   char alive_name[256];

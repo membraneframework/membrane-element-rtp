@@ -1,4 +1,4 @@
-# Membrane Multimedia Framework: RTP
+#Membrane Multimedia Framework : RTP
 
 [![CircleCI](https://circleci.com/gh/membraneframework/membrane-element-rtp.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane-element-rtp)
 

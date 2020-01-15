@@ -57,10 +57,6 @@ defmodule Membrane.Element.RTP.MixProject do
     ]
   end
 
-  defp compilers() do
-    [:bundlex] ++ Mix.compilers()
-  end
-
   defp deps do
     [
       {:membrane_core, "~> 0.5.0"},
@@ -68,7 +64,8 @@ defmodule Membrane.Element.RTP.MixProject do
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:membrane_caps_rtp, "~> 0.1"},
       {:excoveralls, "~> 0.8", only: :test},
-      {:bundlex, "~> 0.2.6"}
+      {:bundlex, "~> 0.2.7"},
+      {:membrane_libdtlssrtp_wrapper, path: "/Users/feliks/membrane/membrane-libdtlssrtp_wrapper"}
     ]
   end
 end

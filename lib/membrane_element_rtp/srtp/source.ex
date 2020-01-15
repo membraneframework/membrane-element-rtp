@@ -1,11 +1,15 @@
 defmodule Membrane.Element.RTP.SRTP.Source do
+  @moduledoc """
+  Element that starts CNode, which performs DTLS-SRTP handshakes with clients and forwards arriving packets and keys via output pad.
+  """
+
   require Bundlex.CNode
 
+  alias Membrane.Element.RTP.SRTP.KeySet
   alias Membrane.Buffer
   alias Bundlex.CNode
 
   use Membrane.Source
-  # use Bunch
 
   def_options cert_file: [
                 type: :string,
@@ -58,16 +62,41 @@ defmodule Membrane.Element.RTP.SRTP.Source do
       state.local_port
     }
 
-    {node, :ok} = cnode |> CNode.call(msg)
+    :ok = cnode |> CNode.call({:handshake, msg})
+    # :ok = cnode |> CNode.call(msg)
 
     {:ok, %{state | cnode: cnode}}
   end
 
   @impl true
-  @spec handle_other({CNode.t(), any}, any, any) :: any
-  def handle_other({cnode, packet}, _ctx, state) do
+  @spec handle_other({CNode.t(), any}, any, any) :: any 
+  def handle_other({cnode, {:packet, packet}}, _ctx, state) do
     buff_cntn = %Buffer{payload: packet}
     action = [buffer: {:output, buff_cntn}]
     {{:ok, action}, state}
+  end
+
+  @impl true
+  @spec handle_other({CNode.t(), any}, any, any) :: any 
+  def handle_other(
+        {cnode, {
+           {:localkey, localkey},
+           {:remotekey, remotekey},
+           {:localsalt, localsalt},
+           {:remotesalt, remotesalt}
+          }},
+        _ctx,
+        state
+      ) do
+
+    key_set = %KeySet{
+      localkey: localkey,
+      remotekey: remotekey,
+      localsalt: localsalt,
+      remotesalt: remotesalt
+    }
+
+    event_action = {:event, {:output, key_set}}
+    {{:ok, event_action}, state}
   end
 end
