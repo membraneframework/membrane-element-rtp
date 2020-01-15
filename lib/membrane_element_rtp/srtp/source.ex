@@ -69,26 +69,24 @@ defmodule Membrane.Element.RTP.SRTP.Source do
   end
 
   @impl true
-  @spec handle_other({CNode.t(), any}, any, any) :: any 
-  def handle_other({cnode, {:packet, packet}}, _ctx, state) do
+  def handle_other({%CNode{} = cnode, {:packet, packet}}, _ctx, state) do
     buff_cntn = %Buffer{payload: packet}
     action = [buffer: {:output, buff_cntn}]
     {{:ok, action}, state}
   end
 
   @impl true
-  @spec handle_other({CNode.t(), any}, any, any) :: any 
   def handle_other(
-        {cnode, {
+        {%CNode{} = cnode,
+         {
            {:localkey, localkey},
            {:remotekey, remotekey},
            {:localsalt, localsalt},
            {:remotesalt, remotesalt}
-          }},
+         }},
         _ctx,
         state
       ) do
-
     key_set = %KeySet{
       localkey: localkey,
       remotekey: remotekey,
