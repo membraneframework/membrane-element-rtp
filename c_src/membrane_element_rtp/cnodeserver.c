@@ -73,7 +73,7 @@ int parse_string_arg(const char *buf, int *index, char *dest) {
 
 int decode_message_type(const char *buff, int *decode_idx, char *dst) {
   int arity;
-  if (ei_decode_tuple_header(buff, decode_idx, arity) || arity != 2) {
+  if (ei_decode_tuple_header(buff, decode_idx, &arity) || arity != 2) {
     -1;
   }
 

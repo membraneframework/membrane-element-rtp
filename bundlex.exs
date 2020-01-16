@@ -10,14 +10,21 @@ defmodule Membrane.Element.RTP.BundlexProject do
       handshaker: [
         sources: ["handshaker.c", "cnodeserver.c"],
         includes: includes(Bundlex.platform()),
-        lib_dirs: includes(Bundlex.platform()),
+        lib_dirs: lib_dirs(Bundlex.platform()),
         libs: ["crypto", "ssl"],
-        deps: [membrane_libdtlssrtp_wrapper: :libdtlssrtp]
+        deps: [membrane_libdtlssrtp_wrapper: :handshaker_utils]
+      ],
+      test_client: [
+        sources: ["test_client.c"],
+        includes: includes(Bundlex.platform()),
+        lib_dirs: lib_dirs(Bundlex.platform()),
+        libs: ["crypto", "ssl"],
+        deps: [membrane_libdtlssrtp_wrapper: :dummy_client]
       ]
     ]
   end
 
-  defp libs_dirs(:macosx) do
+  defp lib_dirs(:macosx) do
     ["/usr/local/opt/openssl/lib"]
   end
 

@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "handshaker.h": "c",
-        "dsink_udp.h": "c"
+        "dsink_udp.h": "c",
+        "select.h": "c",
+        "dtls_srtp.h": "c"
     }
 }
