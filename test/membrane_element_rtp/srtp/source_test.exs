@@ -24,10 +24,9 @@ defmodule Membrane.Element.RTP.SRTP.SourceTest do
 
   defp receive_and_handle(state) do
     receive do
-      {node, packet} ->
+      msg ->
         empty_ctx = %{}
-        formatted_msg = {%CNode{node: node, server: nil}, packet}
-        Source.handle_other(formatted_msg, empty_ctx, state)
+        Source.handle_other(msg, empty_ctx, state)
     after
       5000 ->
         flunk("Timeout exceed!\n")
