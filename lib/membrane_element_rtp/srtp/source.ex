@@ -96,15 +96,4 @@ defmodule Membrane.Element.RTP.SRTP.Source do
     event_action = {:event, {:output, key_set}}
     {{:ok, event_action}, state}
   end
-
-  def debug() do
-    receive do
-      sth ->
-        IO.puts("mamyt cos")
-        sth
-    after
-      1000 ->
-        IO.puts("nico")
-    end
-  end
 end
