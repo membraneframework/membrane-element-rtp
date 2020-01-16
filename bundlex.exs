@@ -13,7 +13,12 @@ defmodule Membrane.Element.RTP.BundlexProject do
         lib_dirs: lib_dirs(Bundlex.platform()),
         libs: ["crypto", "ssl"],
         deps: [membrane_libdtlssrtp_wrapper: :handshaker_utils]
-      ],
+      ]
+    ] ++ cnodes_if_env_test(Mix.env)
+  end
+
+  defp cnodes_if_env_test(:test) do
+    [
       test_client: [
         sources: ["test_client.c"],
         includes: includes(Bundlex.platform()),
@@ -22,6 +27,10 @@ defmodule Membrane.Element.RTP.BundlexProject do
         deps: [membrane_libdtlssrtp_wrapper: :dummy_client]
       ]
     ]
+  end
+
+  defp cnodes_if_env_test(_env) do
+    []
   end
 
   defp lib_dirs(:macosx) do
