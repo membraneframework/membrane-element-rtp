@@ -10,7 +10,7 @@ defmodule Membrane.Element.RTP.Secure.Context do
 
   @type t() :: %__MODULE__{
           master_keys: %{mki() => MasterKey.t()},
-          from_to_list: [{integer(), integer(), mki()}],
+          from_to_list: [{from_position :: integer(), to_position :: integer(), mki()}],
           rollover_counter: non_neg_integer(),
           encryption_alg: encryption_algorithm(),
           auth_alg: authentication_algorithm(),
