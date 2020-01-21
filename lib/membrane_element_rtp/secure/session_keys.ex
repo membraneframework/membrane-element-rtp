@@ -1,8 +1,7 @@
-defmodule Membrane.Element.RTP.Secure.SessionKeys do
+defmodule Membrane.Element.RTP.Parser.Secure.SessionKeys do
   @moduledoc """
   Functions for retrieving/deriving SRTP session keys.
 
-  Context.session is a map that maps MKI into session keys and their lifetimes.
   Lifetime is the last index when the paired session keys are valid.
   nil lifetime means the session key never needs refresing (KDR equals 0)
 
@@ -14,21 +13,21 @@ defmodule Membrane.Element.RTP.Secure.SessionKeys do
 
   use Bitwise
 
-  alias Membrane.Element.RTP.Secure.{Context, MasterKey}
+  alias Membrane.Element.RTP.Parser.Secure.{Context, MasterKey}
 
   @key_types [:srtp_encr, :srtp_auth, :srtp_salt]
              |> Enum.with_index()
              |> Map.new()
 
   @spec get_or_derive_session_keys(Context.t(), Context.mki(), integer() | nil) ::
-          {Context.t(), map()}
+          {Context.t(), Context.session_keys()}
 
   def get_or_derive_session_keys(%Context{sessions: sessions} = ctx, mki, index) do
     sessions
     |> Map.get(mki)
     |> case do
-      %{keys: sk, lifetime: nil} -> {ctx, sk}
-      %{keys: sk, lifetime: until} when index < until -> {ctx, sk}
+      {sk, nil} -> {ctx, sk}
+      {sk, until} when index < until -> {ctx, sk}
       _ -> derive_all_session_keys(ctx, mki, index)
     end
   end
@@ -37,12 +36,11 @@ defmodule Membrane.Element.RTP.Secure.SessionKeys do
     master_key = context.master_keys[mki]
 
     keys =
-      Enum.reduce(
+      Map.new(
         @key_types,
-        %{},
-        fn {type, type_index}, acc ->
+        fn {type, type_index} ->
           session_key = derive_session_key(master_key, index, context, type_index)
-          Map.put(acc, type, session_key)
+          {type, session_key}
         end
       )
 
@@ -52,7 +50,7 @@ defmodule Membrane.Element.RTP.Secure.SessionKeys do
         kdr -> index + kdr
       end
 
-    context = Map.put(context, :session, %{keys: keys, lifetime: lifetime})
+    context = put_in(context.sessions[mki], {keys, lifetime})
     {context, keys}
   end
 

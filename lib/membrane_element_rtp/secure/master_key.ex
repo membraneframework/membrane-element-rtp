@@ -1,4 +1,4 @@
-defmodule Membrane.Element.RTP.Secure.MasterKey do
+defmodule Membrane.Element.RTP.Parser.Secure.MasterKey do
   @moduledoc """
   """
 

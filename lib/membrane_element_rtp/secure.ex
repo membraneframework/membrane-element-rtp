@@ -1,62 +1,53 @@
-defmodule Membrane.Element.RTP.Secure do
-  @moduledoc """
-  Provides SRTP functionality for the element.
-  """
+defmodule Membrane.Element.RTP.Parser.Secure do
+  @moduledoc false
+  # Provides SRTP functionality for the element.
 
   use Bitwise
 
-  alias Membrane.Buffer
-  alias Membrane.Element.RTP.{Packet, PacketParser, Suffix}
-  alias Membrane.Element.RTP.Secure.{Context, SessionKeys}
+  @rollover_counter_limit 1 <<< 32
+  @seq_limit 65536
+  @seq_half 32768
 
-  @spec get_context(map(), binary()) :: {:ok, Context.t(), Context.id()}
+  alias Membrane.Element.RTP.{Header, Packet, PacketParser, Suffix}
+  alias Membrane.Element.RTP.Parser.Secure.{Context, SessionKeys}
 
-  def get_context(context_map, buffer) do
-    # To parse a packet we need to know the cryptographic context it belongs to,
-    # so we need to know its ssrc which is part of crypto context identificator.
-    # That's why this gets ssrc out of the raw payload, before any parsing is done.
-    <<_::64, ssrc::32, _::binary>> = buffer
+  @spec get_context(%{Context.id() => Context.t()}, integer(), map()) ::
+          {:ok, Context.t(), Context.id()}
 
-    id = {ssrc, buffer.metadata[:local_address], buffer.metadata[:local_port]}
+  def get_context(context_map, ssrc, metadata) do
+    id = {ssrc, metadata[:local_address], metadata[:local_port]}
     context = Map.get(context_map, id, nil)
     {:ok, context, id}
   end
 
-  @spec process_buffer(Context.t(), Buffer.t()) ::
+  @spec process_payload(binary(), binary(), Context.t(), Header.t(), Suffix.t()) ::
           {:ok, Packet.t(), Context.update()} | {:error, any()}
 
   @doc """
-  Verifies (authenticates) and decrypts a packet (buffer). Returns the packet along
-  with any updates that should be applied to the cryptographic context.
-
-  This might be used by key estabilishment protocols like DTLS-SRTP (and discard the updates).
+  Verifies (authenticates) and decrypts the payload of a SRTP packet.
+  Returns the decrypted payload along with any updates that should be applied
+  to the cryptographic context.
   """
-  def process_buffer(context, buffer) do
-    with {:ok, packet} <-
-           PacketParser.parse_packet(buffer.payload,
-             srtp: true,
-             mki_indicator: context.mki_indicator,
-             auth_tag_size: context.auth_tag_size
-           ),
-         {index, s_l, roc} <- get_packet_index(context, packet.header.sequence_number),
-         {:ok, mki} <- get_mki(context, packet, index),
-         {context, keys} <- SessionKeys.get_or_derive_session_keys(context, mki, index),
+  def process_payload(payload, auth_portion, context, header, suffix) do
+    {index, s_l, roc} = get_packet_index(context, header.sequence_number)
+
+    with {:ok, mki} <- get_mki(context, suffix, index),
+         {context, keys} = SessionKeys.get_or_derive_session_keys(context, mki, index),
          :ok <- check_replayed(context.replay_list, index),
-         :ok <- check_auth(context, buffer.payload, packet.suffix.auth_tag),
+         :ok <- check_auth(context, keys, auth_portion, suffix.auth_tag),
          {:ok, payload} <-
            decrypt_payload(
-             packet.payload,
+             payload,
              context,
              keys.srtp_encr,
              keys.srtp_salt,
-             packet.header.ssrc,
+             header.ssrc,
              index
-           ),
-         payload <- ignore_padding(payload, packet.header.padding) do
-      packet = Map.put(packet, :buffer, payload)
+           ) do
+      payload = PacketParser.ignore_padding(payload, header.padding)
 
       updates = {index, s_l, roc, mki}
-      {:ok, packet, updates}
+      {:ok, payload, updates}
     end
   end
 
@@ -74,18 +65,16 @@ defmodule Membrane.Element.RTP.Secure do
   @spec get_packet_index(Context.t(), integer()) :: {integer(), integer(), integer()}
 
   defp get_packet_index(%Context{rollover_counter: roc, s_l: s_l}, seq) do
-    int_limit = 1 <<< 32
-
     # Get index - Appendix A
     # Update roc, s_l if necessary - page 13.
 
     {s_l, roc, v} =
       cond do
-        s_l < 32768 and seq - s_l > 32768 ->
-          {s_l, roc, rem(roc - 1, int_limit)}
+        s_l < @seq_half and seq - s_l > @seq_half ->
+          {s_l, roc, rem(roc - 1, @rollover_counter_limit)}
 
-        s_l >= 32768 and s_l - 32768 > seq ->
-          v = rem(roc + 1, int_limit)
+        s_l >= @seq_half and s_l - @seq_half > seq ->
+          v = rem(roc + 1, @rollover_counter_limit)
           {seq, v, v}
 
         seq > s_l ->
@@ -95,18 +84,18 @@ defmodule Membrane.Element.RTP.Secure do
           {s_l, roc, roc}
       end
 
-    index = seq + v * 65536
+    index = seq + v * @seq_limit
     {index, s_l, roc}
   end
 
-  @spec get_mki(Context.t(), Packet.t(), integer()) :: {:ok, Context.mki()} | {:error, :atom}
+  @spec get_mki(Context.t(), Suffix.t(), integer()) :: {:ok, Context.mki()} | {:error, :atom}
 
-  defp get_mki(%Context{mki_indicator: true}, %Packet{suffix: %Suffix{mki: mki}}, _) do
+  defp get_mki(%Context{mki_indicator: true}, %Suffix{mki: mki}, _index) do
     {:ok, mki}
   end
 
-  defp get_mki(%Context{from_to_list: from_tos, mki_indicator: false}, _, index) do
-    fits = fn {from, to, _} -> from <= index and index <= to end
+  defp get_mki(%Context{from_to_list: from_tos, mki_indicator: false}, _suffix, index) do
+    fits = fn {from, to, _} -> index in from..to end
 
     from_tos
     |> Enum.find(:error, fits)
@@ -123,31 +112,14 @@ defmodule Membrane.Element.RTP.Secure do
     :ok
   end
 
-  @spec check_auth(Context.t(), binary(), binary()) :: :ok | {:error, :atom}
+  @spec check_auth(Context.t(), Context.session_keys(), binary(), binary()) ::
+          :ok | {:error, :atom}
 
-  defp check_auth(_, _, nil), do: :ok
+  defp check_auth(_ctx, _keys, _buffer, nil), do: :ok
 
-  defp check_auth(context, buffer, auth_tag) do
-    mki_size = if(context.mki_indicator, do: 4, else: 0)
-    auth_portion_size = byte_size(buffer) - mki_size - div(context.auth_tag_size, 8)
-
-    <<auth_portion::binary-size(auth_portion_size), _::binary>> = buffer
-
-    %{srtp_auth: key} = context.session.keys
-
-    calc_auth(
-      context,
-      key,
-      auth_portion,
-      auth_tag
-    )
-  end
-
-  @spec calc_auth(Context.t(), binary(), binary(), binary()) :: :ok | {:error, :atom}
-
-  defp calc_auth(
+  defp check_auth(
          %Context{rollover_counter: roc, auth_alg: :hmac_sha},
-         key,
+         %{srtp_auth: key},
          auth_portion,
          auth_tag
        ) do
@@ -161,7 +133,14 @@ defmodule Membrane.Element.RTP.Secure do
     end
   end
 
-  @spec decrypt_payload(binary(), Context.t(), binary(), binary(), integer(), integer()) ::
+  @spec decrypt_payload(
+          data :: binary(),
+          Context.t(),
+          key :: binary(),
+          salt :: binary(),
+          ssrc :: integer(),
+          packet_index :: integer()
+        ) ::
           {:ok, binary()}
 
   defp decrypt_payload(data, %Context{encryption_alg: nil}, _, _, _, _), do: {:ok, data}
@@ -176,25 +155,8 @@ defmodule Membrane.Element.RTP.Secure do
     {:ok, encrypted}
   end
 
-  @spec ignore_padding(binary(), boolean()) :: binary()
-
-  defp ignore_padding(payload, is_padding_present)
-  defp ignore_padding(payload, false), do: payload
-
-  defp ignore_padding(payload, true) do
-    padding_size = :binary.last(payload)
-    payload_size = byte_size(payload) - padding_size
-    <<stripped_payload::binary-size(payload_size), _::binary-size(padding_size)>> = payload
-    stripped_payload
-  end
-
   def update_mk_counter(context, mki) do
-    mk =
-      context.master_keys
-      |> Map.get(mki)
-      |> Map.update!(:packet_counter, &(&1 + 1))
-
-    put_in(context, [:master_keys, mki], mk)
+    update_in(context, [:master_keys, mki, :packet_counter], &(&1 + 1))
   end
 
   @spec update_replay_list(Context.t(), integer()) :: {:ok, Context.t()}

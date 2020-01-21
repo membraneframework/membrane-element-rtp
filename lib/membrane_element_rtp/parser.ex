@@ -1,7 +1,6 @@
 defmodule Membrane.Element.RTP.Parser do
   @moduledoc """
-  Parses RTP packets.
-  See `options/0` for available options
+  Parses RTP or SRTP packets, depending on provided options.
   """
 
   use Membrane.Filter
@@ -9,17 +8,21 @@ defmodule Membrane.Element.RTP.Parser do
   alias Membrane.Buffer
   alias Membrane.Caps.RTP, as: Caps
   alias Membrane.Element.Action
-  alias Membrane.Element.RTP.Secure.Context
-  alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder, Secure}
+  alias Membrane.Element.RTP.Parser.Secure
+  alias Membrane.Element.RTP.Parser.Secure.Context
+  alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder}
+  alias Membrane.Event.NewContext
 
   @metadata_fields [:timestamp, :sequence_number, :ssrc, :payload_type]
 
   def_options context_map: [
                 spec: %{Context.id() => Context.t()},
+                description: "Initial map with cryptographic contexts",
                 default: %{}
               ],
               secure: [
                 spec: boolean(),
+                description: "Enables SRTP support",
                 default: false
               ]
 
@@ -48,18 +51,26 @@ defmodule Membrane.Element.RTP.Parser do
     {:ok, %State{secure: opts.secure, context_map: opts.context_map}}
   end
 
-  @impl
-  def handle_event(_, %NewContext{context_id: id, context: ctx} = event, _, state) do
+  @impl true
+  def handle_event(:input, %NewContext{context_id: id, context: ctx}, _event_ctx, state) do
     state = put_in(state, [:context_map, id], ctx)
     {:ok, state}
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: buffer_payload} = buffer, _ctx, state) do
-    with {:ok, {packet, state}} <- process_payload(buffer_payload, state),
-         {commands, state} <- build_commands(packet, buffer, state) do
-      {{:ok, commands}, state}
-    else
+  def handle_event(:input, event, _ctx, state) do
+    {{:ok, event: {:output, event}}, state}
+  end
+
+  @impl true
+  def handle_process(:input, buffer, _ctx, state) do
+    buffer
+    |> process_buffer(state)
+    |> case do
+      {:ok, {packet, state}} ->
+        {commands, state} = build_commands(packet, buffer, state)
+        {{:ok, commands}, state}
+
       {:error, reason} ->
         {{:error, reason}, state}
     end
@@ -70,16 +81,31 @@ defmodule Membrane.Element.RTP.Parser do
     {{:ok, demand: {:input, size}}, state}
   end
 
-  defp process_payload(payload, %State{secure: false} = state) do
-    with {:ok, packet} <- PacketParser.parse_packet(payload) do
+  @spec process_buffer(Buffer.t(), State.t()) :: {:ok, {Packet.t(), State.t()}} | {:error, atom()}
+
+  defp process_buffer(buffer, %State{secure: false} = state) do
+    with {:ok, packet} <- PacketParser.parse_packet(buffer.payload) do
       {:ok, {packet, state}}
     end
   end
 
-  defp process_payload(buffer, %State{secure: true} = state) do
-    with {:ok, context, context_id} <- Secure.get_context(state.context_map, buffer.payload),
-         {:ok, packet, updates} <- Secure.process_buffer(context, buffer),
+  defp process_buffer(buffer, %State{secure: true} = state) do
+    {header, rest} = PacketParser.parse_header(buffer.payload)
+
+    with {:ok, context, context_id} <-
+           Secure.get_context(state.context_map, header.ssrc, buffer.metadata),
+         {payload, suffix} =
+           PacketParser.extract_suffix(rest, context.mki_indicator, context.auth_tag_size),
+         {auth_portion, _suffix} =
+           PacketParser.extract_suffix(
+             buffer.payload,
+             context.mki_indicator,
+             context.auth_tag_size
+           ),
+         {:ok, payload, updates} <-
+           Secure.process_payload(payload, auth_portion, context, header, suffix),
          {:ok, context} <- Secure.update_context(context, updates) do
+      packet = Map.put(buffer, :payload, payload)
       state = put_in(state, [:context_map, context_id], context)
       {:ok, {packet, state}}
     end

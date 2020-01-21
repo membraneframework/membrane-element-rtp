@@ -86,14 +86,14 @@ defmodule Membrane.Element.RTP.PacketParserTest do
 
     test "parses SRTP suffixes" do
       test_binary = SamplePacket.sample_srtp_packet()
-      opts = [srtp: true, mki_indicator: false, auth_tag_size: 10]
+      opts = %{srtp: true, mki_indicator: false, auth_tag_size: 10}
       assert {:ok, test_packet} = PacketParser.parse_packet(test_binary, opts)
       assert %Suffix{mki: nil, auth_tag: _} = test_packet.suffix
     end
 
     test "parses SRTP suffixes with MKI" do
       test_binary = SamplePacket.sample_srtp_packet()
-      opts = [srtp: true, mki_indicator: true, auth_tag_size: 160]
+      opts = %{srtp: true, mki_indicator: true, auth_tag_size: 160}
       s = byte_size(test_binary) - 20 - 4
       <<_::s*8, mki::32, tag::160>> = test_binary
       tag = :binary.encode_unsigned(tag)

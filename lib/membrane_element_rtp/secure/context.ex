@@ -1,16 +1,19 @@
-defmodule Membrane.Element.RTP.Secure.Context do
+defmodule Membrane.Element.RTP.Parser.Secure.Context do
   @moduledoc """
   A struct for a cryptographic context, along with types for some of its fields.
   """
 
   @type authentication_algorithm() :: :hmac_sha
   @type encryption_algorithm() :: :aes_128_ctr | nil
-  @type id() :: {mki(), String.t(), non_neg_integer()}
+  @type id() :: {mki(), ip :: String.t(), port :: non_neg_integer()}
   @type mki() :: non_neg_integer()
+  @type session_keys() :: %{srtp_encr: binary(), srtp_auth: binary(), srtp_salt: binary()}
+  @type session() :: {session_keys(), lifetime :: integer()}
 
   @type t() :: %__MODULE__{
           master_keys: %{mki() => MasterKey.t()},
           from_to_list: [{from_position :: integer(), to_position :: integer(), mki()}],
+          sessions: %{mki() => session()},
           rollover_counter: non_neg_integer(),
           encryption_alg: encryption_algorithm(),
           auth_alg: authentication_algorithm(),
