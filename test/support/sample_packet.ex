@@ -6,7 +6,7 @@ defmodule Membrane.Element.RTP.SamplePacket do
   @sample_packet File.read!("test/fixtures/rtp/rtp_packet.bin")
   @external_resource "test/fixtures/rtp/rtp_packet_payload.bin"
   @sample_packet_payload File.read!("test/fixtures/rtp/rtp_packet_payload.bin")
-  @sample_srtp_packet File.read!("test/fixtures/srtp/srtp_packet.hex")
+  @sample_srtp_packet File.read!("test/fixtures/srtp/srtp_packet")
 
   @spec sample_packet() :: binary()
   def sample_packet, do: @sample_packet
