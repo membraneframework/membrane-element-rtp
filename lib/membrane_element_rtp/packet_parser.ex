@@ -4,7 +4,6 @@ defmodule Membrane.Element.RTP.PacketParser do
   """
 
   alias Membrane.Element.RTP.{Header, HeaderExtension, Packet, Suffix}
-  alias Membrane.Element.RTP.Secure.Context
 
   @type error_reason() :: :wrong_version | :packet_malformed
 
