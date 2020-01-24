@@ -8,8 +8,6 @@ defmodule Membrane.Element.RTP.PacketParser do
   @type error_reason_t() :: :wrong_version | :packet_malformed
 
   @spec parse_packet(binary()) :: {:ok, Packet.t()} | {:error, error_reason_t()}
-  def parse_packet(packet)
-
   def parse_packet(<<version::2, _::6, _::binary>>) when version != 2,
     do: {:error, :wrong_version}
 
@@ -17,14 +15,13 @@ defmodule Membrane.Element.RTP.PacketParser do
     do: {:error, :packet_malformed}
 
   def parse_packet(packet) do
-    {header, rest} = parse_header(packet)
-    {payload, suffix} = extract_suffix(rest, false, 0)
+    {header, payload} = parse_header(packet)
     payload = ignore_padding(payload, header.padding)
 
     packet = %Packet{
       header: header,
       payload: payload,
-      suffix: suffix
+      suffix: nil
     }
 
     {:ok, packet}
@@ -75,7 +72,7 @@ defmodule Membrane.Element.RTP.PacketParser do
     {extension_data, rest}
   end
 
-  @spec extract_suffix(binary(), boolean(), non_neg_integer()) :: {binary(), binary()}
+  @spec extract_suffix(binary(), boolean(), non_neg_integer()) :: {binary(), Suffix.t()}
   def extract_suffix(payload_and_suffix, mki_indicator, n_tag) do
     n_tag = div(n_tag, 8)
     l = byte_size(payload_and_suffix) - n_tag - if(mki_indicator, do: 4, else: 0)
@@ -84,7 +81,7 @@ defmodule Membrane.Element.RTP.PacketParser do
     suffix =
       case {mki_indicator, n_tag} do
         {false, 0} ->
-          nil
+          %Suffix{mki: nil, auth_tag: nil}
 
         {false, _} ->
           %Suffix{mki: nil, auth_tag: suffix}

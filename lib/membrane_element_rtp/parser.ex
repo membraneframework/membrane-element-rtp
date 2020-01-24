@@ -81,7 +81,8 @@ defmodule Membrane.Element.RTP.Parser do
     {{:ok, demand: {:input, size}}, state}
   end
 
-  @spec process_buffer(Buffer.t(), State.t()) :: {:ok, {Packet.t(), State.t()}} | {:error, atom()}
+  @spec process_buffer(Buffer.t(), State.t()) ::
+          {:ok, {Packet.t(), State.t()}} | {:error, atom()}
 
   defp process_buffer(buffer, %State{secure: false} = state) do
     with {:ok, packet} <- PacketParser.parse_packet(buffer.payload) do

@@ -8,7 +8,7 @@ defmodule Membrane.Element.RTP.Packet do
   @type t :: %__MODULE__{
           header: Header.t(),
           payload: binary(),
-          suffix: Suffix.t()
+          suffix: Suffix.t() | nil
         }
 
   defstruct [
