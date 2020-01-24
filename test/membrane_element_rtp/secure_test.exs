@@ -22,7 +22,7 @@ defmodule Membrane.Element.RTP.Parser.Secure.SecureTest do
 
     context = %Context{from_to_list: [{0, 42000, 0}], master_keys: %{0 => mk}}
 
-    {header, rest} = PacketParser.parse_header(tp)
+    {:ok, header, rest} = PacketParser.parse_header(tp)
     {payload, suffix} = PacketParser.extract_suffix(rest, false, 80)
     {auth_portion, _} = PacketParser.extract_suffix(tp, false, 80)
 

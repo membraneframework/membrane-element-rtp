@@ -1,33 +1,19 @@
 defmodule Membrane.Element.RTP.PacketParser do
   @moduledoc """
-  Parses RTP and parts of SRTP packets based on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13) and [RFC3711](https://tools.ietf.org/html/rfc3711#page-6)
+  Parses parts of RTP and SRTP packets based on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13) and [RFC3711](https://tools.ietf.org/html/rfc3711#page-6)
   """
 
-  alias Membrane.Element.RTP.{Header, HeaderExtension, Packet, Suffix}
+  alias Membrane.Element.RTP.{Header, HeaderExtension, Suffix}
 
   @type error_reason_t() :: :wrong_version | :packet_malformed
 
-  @spec parse_packet(binary()) :: {:ok, Packet.t()} | {:error, error_reason_t()}
-  def parse_packet(<<version::2, _::6, _::binary>>) when version != 2,
+  @spec parse_header(binary()) :: {:ok, Header.t(), binary()} | {:error, error_reason_t()}
+  def parse_header(<<version::2, _::6, _::binary>>) when version != 2,
     do: {:error, :wrong_version}
 
-  def parse_packet(bytes) when byte_size(bytes) < 4 * 3,
+  def parse_header(bytes) when byte_size(bytes) < 4 * 3,
     do: {:error, :packet_malformed}
 
-  def parse_packet(packet) do
-    {header, payload} = parse_header(packet)
-    payload = ignore_padding(payload, header.padding)
-
-    packet = %Packet{
-      header: header,
-      payload: payload,
-      suffix: nil
-    }
-
-    {:ok, packet}
-  end
-
-  @spec parse_header(binary()) :: {Header.t(), binary()}
   def parse_header(
         <<v::2, p::1, x::1, cc::4, m::1, payload_type::7, sequence_number::16, timestamp::32,
           ssrc::32, rest::binary>>
@@ -49,7 +35,7 @@ defmodule Membrane.Element.RTP.PacketParser do
       extension_header_data: extension_header
     }
 
-    {header, rest}
+    {:ok, header, rest}
   end
 
   defp extract_csrcs(data, count, acc \\ [])

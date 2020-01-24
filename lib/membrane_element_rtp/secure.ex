@@ -15,8 +15,12 @@ defmodule Membrane.Element.RTP.Parser.Secure do
           {:ok, Context.t(), Context.id_t()}
   def get_context(context_map, ssrc, metadata) do
     id = {ssrc, metadata[:local_address], metadata[:local_port]}
-    context = Map.get(context_map, id, nil)
-    {:ok, context, id}
+
+    Map.get(context_map, id, nil)
+    |> case do
+      nil -> {:error, :no_context}
+      ctx -> {:ok, ctx, id}
+    end
   end
 
   @doc """
@@ -25,23 +29,24 @@ defmodule Membrane.Element.RTP.Parser.Secure do
   to the cryptographic context.
   """
   @spec process_payload(binary(), binary(), Context.t(), Header.t(), Suffix.t()) ::
-          {:ok, binary(), Context.update_t()} | {:error, any()}
+          {:ok, binary(), Context.update_t()} | {:error, atom()}
   def process_payload(payload, auth_portion, context, header, suffix) do
     {index, s_l, roc} = get_packet_index(context, header.sequence_number)
 
     with {:ok, mki} <- get_mki(context, suffix, index),
          {context, keys} = SessionKeys.get_or_derive_session_keys(context, mki, index),
          :ok <- check_replayed(context.replay_list, index),
-         :ok <- check_auth(context, keys, auth_portion, suffix.auth_tag),
-         {:ok, payload} <-
-           decrypt_payload(
-             payload,
-             context,
-             keys.srtp_encr,
-             keys.srtp_salt,
-             header.ssrc,
-             index
-           ) do
+         :ok <- check_auth(context, keys, auth_portion, suffix.auth_tag) do
+      payload =
+        decrypt_payload(
+          payload,
+          context,
+          keys.srtp_encr,
+          keys.srtp_salt,
+          header.ssrc,
+          index
+        )
+
       updates = {index, s_l, roc, mki}
       {:ok, payload, updates}
     end
@@ -83,7 +88,8 @@ defmodule Membrane.Element.RTP.Parser.Secure do
     {index, s_l, roc}
   end
 
-  @spec get_mki(Context.t(), Suffix.t(), integer()) :: {:ok, MasterKey.id_t()} | {:error, :atom}
+  @spec get_mki(Context.t(), Suffix.t(), integer()) ::
+          {:ok, MasterKey.id_t()} | {:error, :no_mki_found}
   defp get_mki(%Context{mki_indicator: true}, %Suffix{mki: mki}, _index) do
     {:ok, mki}
   end
@@ -99,7 +105,7 @@ defmodule Membrane.Element.RTP.Parser.Secure do
     end
   end
 
-  @spec check_replayed(list(), integer()) :: :ok | :error
+  @spec check_replayed(list(), integer()) :: :ok | {:error, :replayed | :ignored}
 
   defp check_replayed(_replay_list, _index) do
     # TODO
@@ -107,7 +113,7 @@ defmodule Membrane.Element.RTP.Parser.Secure do
   end
 
   @spec check_auth(Context.t(), Context.session_keys_t(), binary(), binary()) ::
-          :ok | {:error, :atom}
+          :ok | {:error, :auth_tag_mismatch}
   defp check_auth(_ctx, _keys, _buffer, nil), do: :ok
 
   defp check_auth(
@@ -134,17 +140,15 @@ defmodule Membrane.Element.RTP.Parser.Secure do
           ssrc :: integer(),
           packet_index :: integer()
         ) ::
-          {:ok, binary()}
-  defp decrypt_payload(data, %Context{encryption_alg: nil}, _, _, _, _), do: {:ok, data}
+          binary()
+  defp decrypt_payload(data, %Context{encryption_alg: nil}, _, _, _, _), do: data
 
   defp decrypt_payload(data, %Context{encryption_alg: :aes_128_ctr}, key, salt, ssrc, index) do
     isalt = :binary.decode_unsigned(salt)
     iv = (isalt <<< 16) ^^^ (ssrc <<< 64) ^^^ (index <<< 16)
     iv = <<iv::128>>
 
-    encrypted = :crypto.crypto_one_time(:aes_128_ctr, key, iv, data, false)
-
-    {:ok, encrypted}
+    :crypto.crypto_one_time(:aes_128_ctr, key, iv, data, false)
   end
 
   @spec update_mk_counter(Context.t(), MasterKey.id_t()) :: Context.t()

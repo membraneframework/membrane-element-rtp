@@ -10,7 +10,7 @@ defmodule Membrane.Element.RTP.Parser do
   alias Membrane.Element.Action
   alias Membrane.Element.RTP.Parser.Secure
   alias Membrane.Element.RTP.Parser.Secure.Context
-  alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder}
+  alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder, Suffix}
   alias Membrane.Event.NewContext
 
   @metadata_fields [:timestamp, :sequence_number, :ssrc, :payload_type]
@@ -67,7 +67,7 @@ defmodule Membrane.Element.RTP.Parser do
     buffer
     |> process_buffer(state)
     |> case do
-      {:ok, {packet, state}} ->
+      {:ok, packet, state} ->
         {commands, state} = build_commands(packet, buffer, state)
         {{:ok, commands}, state}
 
@@ -82,21 +82,32 @@ defmodule Membrane.Element.RTP.Parser do
   end
 
   @spec process_buffer(Buffer.t(), State.t()) ::
-          {:ok, {Packet.t(), State.t()}} | {:error, atom()}
+          {:ok, Packet.t(), State.t()} | {:error, atom()}
+  defp process_buffer(buffer, state) do
+    with {:ok, header, payload} <- PacketParser.parse_header(buffer.payload),
+         {:ok, payload, suffix, state} <- process_secure(buffer, header, payload, state) do
+      payload = PacketParser.ignore_padding(payload, header.padding)
 
-  defp process_buffer(buffer, %State{secure: false} = state) do
-    with {:ok, packet} <- PacketParser.parse_packet(buffer.payload) do
-      {:ok, {packet, state}}
+      packet = %Packet{
+        header: header,
+        payload: payload,
+        suffix: suffix
+      }
+
+      {:ok, packet, state}
     end
   end
 
-  defp process_buffer(buffer, %State{secure: true} = state) do
-    {header, rest} = PacketParser.parse_header(buffer.payload)
+  @spec process_secure(Buffer.t(), Header.t(), binary(), State.t()) ::
+          {:ok, binary(), Suffix.t() | nil, State.t()} | {:error, atom()}
+  defp process_secure(_buffer, _header, payload, %{secure: false} = state),
+    do: {:ok, payload, nil, state}
 
+  defp process_secure(buffer, header, payload, %{secure: true} = state) do
     with {:ok, context, context_id} <-
            Secure.get_context(state.context_map, header.ssrc, buffer.metadata),
          {payload, suffix} =
-           PacketParser.extract_suffix(rest, context.mki_indicator, context.auth_tag_size),
+           PacketParser.extract_suffix(payload, context.mki_indicator, context.auth_tag_size),
          {auth_portion, _suffix} =
            PacketParser.extract_suffix(
              buffer.payload,
@@ -104,12 +115,10 @@ defmodule Membrane.Element.RTP.Parser do
              context.auth_tag_size
            ),
          {:ok, payload, updates} <-
-           Secure.process_payload(payload, auth_portion, context, header, suffix),
-         payload = PacketParser.ignore_padding(payload, header.padding),
-         {:ok, context} <- Secure.update_context(context, updates) do
-      packet = Map.put(buffer, :payload, payload)
+           Secure.process_payload(payload, auth_portion, context, header, suffix) do
+      context = Secure.update_context(context, updates)
       state = put_in(state, [:context_map, context_id], context)
-      {:ok, {packet, state}}
+      {:ok, payload, suffix, state}
     end
   end
 
