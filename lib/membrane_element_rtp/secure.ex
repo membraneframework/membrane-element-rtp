@@ -9,7 +9,7 @@ defmodule Membrane.Element.RTP.Parser.Secure do
   @seq_half 32768
 
   alias Membrane.Element.RTP.{Header, Suffix}
-  alias Membrane.Element.RTP.Parser.Secure.{Context, SessionKeys}
+  alias Membrane.Element.RTP.Parser.Secure.{Context, MasterKey, SessionKeys}
 
   @spec get_context(%{Context.id_t() => Context.t()}, integer(), map()) ::
           {:ok, Context.t(), Context.id_t()}
@@ -87,7 +87,7 @@ defmodule Membrane.Element.RTP.Parser.Secure do
     {index, s_l, roc}
   end
 
-  @spec get_mki(Context.t(), Suffix.t(), integer()) :: {:ok, Context.mki_t()} | {:error, :atom}
+  @spec get_mki(Context.t(), Suffix.t(), integer()) :: {:ok, MasterKey.id_t()} | {:error, :atom}
 
   defp get_mki(%Context{mki_indicator: true}, %Suffix{mki: mki}, _index) do
     {:ok, mki}

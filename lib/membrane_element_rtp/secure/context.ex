@@ -7,15 +7,14 @@ defmodule Membrane.Element.RTP.Parser.Secure.Context do
 
   @type authentication_algorithm_t() :: :hmac_sha
   @type encryption_algorithm_t() :: :aes_128_ctr | nil
-  @type id_t() :: {mki_t(), ip :: String.t(), port :: non_neg_integer()}
-  @type mki_t() :: non_neg_integer()
+  @type id_t() :: {MasterKey.id_t(), ip :: String.t(), port :: non_neg_integer()}
   @type session_keys_t() :: %{srtp_encr: binary(), srtp_auth: binary(), srtp_salt: binary()}
   @type session_t() :: {session_keys_t(), lifetime :: integer()}
 
   @type t() :: %__MODULE__{
-          master_keys: %{mki_t() => MasterKey.t()},
-          from_to_list: [{from_position :: integer(), to_position :: integer(), mki_t()}],
-          sessions: %{mki_t() => session_t()},
+          master_keys: %{MasterKey.id_t() => MasterKey.t()},
+          from_to_list: [{from_position :: integer(), to_position :: integer(), MasterKey.id_t()}],
+          sessions: %{MasterKey.id_t() => session_t()},
           rollover_counter: non_neg_integer(),
           encryption_alg: encryption_algorithm_t(),
           auth_alg: authentication_algorithm_t(),
@@ -32,7 +31,8 @@ defmodule Membrane.Element.RTP.Parser.Secure.Context do
   @typedoc """
   Data needed to update a context after a packet has been parsed successfully.
   """
-  @type update_t() :: {non_neg_integer(), non_neg_integer(), non_neg_integer(), mki_t()} | nil
+  @type update_t() ::
+          {non_neg_integer(), non_neg_integer(), non_neg_integer(), MasterKey.id_t()} | nil
 
   defstruct master_keys: %{},
             from_to_list: [],

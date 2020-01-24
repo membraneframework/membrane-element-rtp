@@ -19,7 +19,7 @@ defmodule Membrane.Element.RTP.Parser.Secure.SessionKeys do
              |> Enum.with_index()
              |> Map.new()
 
-  @spec get_or_derive_session_keys(Context.t(), Context.mki_t(), integer() | nil) ::
+  @spec get_or_derive_session_keys(Context.t(), MasterKey.id_t(), integer() | nil) ::
           {Context.t(), Context.session_keys_t()}
 
   def get_or_derive_session_keys(%Context{sessions: sessions} = ctx, mki, index) do

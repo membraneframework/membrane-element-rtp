@@ -3,6 +3,8 @@ defmodule Membrane.Element.RTP.Parser.Secure.MasterKey do
   A struct for a master key-salt pair.
   """
 
+  @type id_t() :: non_neg_integer()
+
   @type t :: %__MODULE__{
           key: binary(),
           salt: binary(),
