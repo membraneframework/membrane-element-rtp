@@ -1,39 +1,25 @@
 defmodule Membrane.Element.RTP.PacketParser do
   @moduledoc """
-  Parses RTP and SRTP packets based on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13) and [RFC3711](https://tools.ietf.org/html/rfc3711#page-6)
+  Parses RTP and parts of SRTP packets based on [RFC3550](https://tools.ietf.org/html/rfc3550#page-13) and [RFC3711](https://tools.ietf.org/html/rfc3711#page-6)
   """
 
   alias Membrane.Element.RTP.{Header, HeaderExtension, Packet, Suffix}
 
   @type error_reason_t() :: :wrong_version | :packet_malformed
 
-  @spec parse_packet(binary(), %{
-          srtp: boolean(),
-          mki_indicator: boolean(),
-          auth_tag_size: non_neg_integer()
-        }) :: {:ok, Packet.t()} | {:error, error_reason_t()}
-  def parse_packet(
-        packet,
-        srtp_opts \\ %{
-          srtp: false,
-          mki_indicator: false,
-          auth_tag_size: 0
-        }
-      )
+  @spec parse_packet(binary()) :: {:ok, Packet.t()} | {:error, error_reason_t()}
+  def parse_packet(packet)
 
-  def parse_packet(<<version::2, _::6, _::binary>>, _srtp_opts) when version != 2,
+  def parse_packet(<<version::2, _::6, _::binary>>) when version != 2,
     do: {:error, :wrong_version}
 
-  def parse_packet(bytes, _srtp_opts) when byte_size(bytes) < 4 * 3,
+  def parse_packet(bytes) when byte_size(bytes) < 4 * 3,
     do: {:error, :packet_malformed}
 
-  def parse_packet(
-        packet,
-        %{srtp: use_srtp, mki_indicator: mkii, auth_tag_size: n_tag}
-      ) do
+  def parse_packet(packet) do
     {header, rest} = parse_header(packet)
-    {payload, suffix} = extract_suffix(rest, mkii, n_tag)
-    payload = ignore_padding(payload, header.padding and !use_srtp)
+    {payload, suffix} = extract_suffix(rest, false, 0)
+    payload = ignore_padding(payload, header.padding)
 
     packet = %Packet{
       header: header,

@@ -3,7 +3,7 @@ defmodule Membrane.Element.RTP.PacketParserTest do
 
   alias Membrane.Element.RTP.{Header, Packet, PacketParser, SamplePacket, Suffix}
 
-  describe "RTP parser" do
+  describe "RTP.Parser for RTP packets" do
     test "parses valid packets" do
       assert PacketParser.parse_packet(SamplePacket.sample_packet()) ==
                {:ok,
@@ -83,23 +83,27 @@ defmodule Membrane.Element.RTP.PacketParserTest do
                   payload: SamplePacket.sample_packet_payload()
                 }}
     end
+  end
 
-    test "parses SRTP suffixes" do
+  describe "RTP.Parser for SRTP packets" do
+    setup do
       test_binary = SamplePacket.sample_srtp_packet()
-      opts = %{srtp: true, mki_indicator: false, auth_tag_size: 10}
-      assert {:ok, test_packet} = PacketParser.parse_packet(test_binary, opts)
-      assert %Suffix{mki: nil, auth_tag: _} = test_packet.suffix
+      {_hd, rest} = PacketParser.parse_header(test_binary)
+      %{packet: test_binary, payload_and_suffix: rest}
     end
 
-    test "parses SRTP suffixes with MKI" do
-      test_binary = SamplePacket.sample_srtp_packet()
-      opts = %{srtp: true, mki_indicator: true, auth_tag_size: 160}
-      s = byte_size(test_binary) - 20 - 4
-      <<_::s*8, mki::32, tag::160>> = test_binary
+    test "parses SRTP suffixes", %{payload_and_suffix: rest} do
+      {_payload, suffix} = PacketParser.extract_suffix(rest, false, 80)
+      assert %Suffix{mki: nil, auth_tag: _} = suffix
+    end
+
+    test "parses SRTP suffixes with MKI", %{packet: packet, payload_and_suffix: rest} do
+      s = byte_size(packet) - 20 - 4
+      <<_::s*8, mki::32, tag::160>> = packet
       tag = :binary.encode_unsigned(tag)
 
-      assert {:ok, test_packet} = PacketParser.parse_packet(test_binary, opts)
-      assert %Suffix{mki: ^mki, auth_tag: ^tag} = test_packet.suffix
+      assert {_payload, suffix} = PacketParser.extract_suffix(rest, true, 160)
+      assert %Suffix{mki: ^mki, auth_tag: ^tag} = suffix
     end
   end
 end
