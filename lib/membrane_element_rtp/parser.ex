@@ -104,6 +104,7 @@ defmodule Membrane.Element.RTP.Parser do
            ),
          {:ok, payload, updates} <-
            Secure.process_payload(payload, auth_portion, context, header, suffix),
+         payload = PacketParser.ignore_padding(payload, header.padding),
          {:ok, context} <- Secure.update_context(context, updates) do
       packet = Map.put(buffer, :payload, payload)
       state = put_in(state, [:context_map, context_id], context)

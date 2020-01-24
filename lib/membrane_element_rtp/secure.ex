@@ -8,7 +8,7 @@ defmodule Membrane.Element.RTP.Parser.Secure do
   @seq_limit 65536
   @seq_half 32768
 
-  alias Membrane.Element.RTP.{Header, Packet, PacketParser, Suffix}
+  alias Membrane.Element.RTP.{Header, Suffix}
   alias Membrane.Element.RTP.Parser.Secure.{Context, SessionKeys}
 
   @spec get_context(%{Context.id_t() => Context.t()}, integer(), map()) ::
@@ -44,8 +44,6 @@ defmodule Membrane.Element.RTP.Parser.Secure do
              header.ssrc,
              index
            ) do
-      payload = PacketParser.ignore_padding(payload, header.padding)
-
       updates = {index, s_l, roc, mki}
       {:ok, payload, updates}
     end
@@ -162,7 +160,7 @@ defmodule Membrane.Element.RTP.Parser.Secure do
 
   @spec update_replay_list(Context.t(), integer()) :: {:ok, Context.t()}
 
-  defp update_replay_list(%Context{replay_list: list} = ctx, _todo_index) do
+  defp update_replay_list(%Context{replay_list: _list} = ctx, _todo_index) do
     # TODO
     {:ok, ctx}
   end
