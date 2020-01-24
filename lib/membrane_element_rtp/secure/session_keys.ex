@@ -5,10 +5,7 @@ defmodule Membrane.Element.RTP.Parser.Secure.SessionKeys do
   Lifetime is the last index when the paired session keys are valid.
   nil lifetime means the session key never needs refresing (KDR equals 0)
 
-  When a packet needs processing we check if session keys are valid and use them or
-  derive a new set.
-
-  TODO implement storing past session keys, in case packets arrive out of order
+  When a packet needs processing we check if session keys are valid and use them or derive a new set.
   """
 
   use Bitwise
@@ -19,9 +16,9 @@ defmodule Membrane.Element.RTP.Parser.Secure.SessionKeys do
              |> Enum.with_index()
              |> Map.new()
 
+  # TODO implement storing past session keys, in case packets arrive out of order
   @spec get_or_derive_session_keys(Context.t(), MasterKey.id_t(), integer() | nil) ::
           {Context.t(), Context.session_keys_t()}
-
   def get_or_derive_session_keys(%Context{sessions: sessions} = ctx, mki, index) do
     sessions
     |> Map.get(mki)

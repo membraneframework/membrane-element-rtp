@@ -45,7 +45,6 @@ defmodule Membrane.Element.RTP.PacketParser do
   end
 
   @spec parse_header(binary()) :: {Header.t(), binary()}
-
   def parse_header(
         <<v::2, p::1, x::1, cc::4, m::1, payload_type::7, sequence_number::16, timestamp::32,
           ssrc::32, rest::binary>>
@@ -90,6 +89,7 @@ defmodule Membrane.Element.RTP.PacketParser do
     {extension_data, rest}
   end
 
+  @spec extract_suffix(binary(), boolean(), non_neg_integer()) :: {binary(), binary()}
   def extract_suffix(payload_and_suffix, mki_indicator, n_tag) do
     n_tag = div(n_tag, 8)
     l = byte_size(payload_and_suffix) - n_tag - if(mki_indicator, do: 4, else: 0)
@@ -119,7 +119,6 @@ defmodule Membrane.Element.RTP.PacketParser do
   defp extract_boolean(0), do: false
 
   @spec ignore_padding(binary(), boolean()) :: binary()
-
   def ignore_padding(payload, is_padding_present)
   def ignore_padding(payload, false), do: payload
 
