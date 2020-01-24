@@ -5,13 +5,13 @@ defmodule Membrane.Element.RTP.PacketParser do
 
   alias Membrane.Element.RTP.{Header, HeaderExtension, Packet, Suffix}
 
-  @type error_reason() :: :wrong_version | :packet_malformed
+  @type error_reason_t() :: :wrong_version | :packet_malformed
 
   @spec parse_packet(binary(), %{
           srtp: boolean(),
           mki_indicator: boolean(),
           auth_tag_size: non_neg_integer()
-        }) :: {:ok, Packet.t()} | {:error, error_reason()}
+        }) :: {:ok, Packet.t()} | {:error, error_reason_t()}
   def parse_packet(
         packet,
         srtp_opts \\ %{
@@ -43,6 +43,8 @@ defmodule Membrane.Element.RTP.PacketParser do
 
     {:ok, packet}
   end
+
+  @spec parse_header(binary()) :: {Header.t(), binary()}
 
   def parse_header(
         <<v::2, p::1, x::1, cc::4, m::1, payload_type::7, sequence_number::16, timestamp::32,

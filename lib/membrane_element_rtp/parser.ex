@@ -16,7 +16,7 @@ defmodule Membrane.Element.RTP.Parser do
   @metadata_fields [:timestamp, :sequence_number, :ssrc, :payload_type]
 
   def_options context_map: [
-                spec: %{Context.id() => Context.t()},
+                spec: %{Context.id_t() => Context.t()},
                 description: "Initial map with cryptographic contexts",
                 default: %{}
               ],
@@ -42,7 +42,7 @@ defmodule Membrane.Element.RTP.Parser do
     @type t :: %__MODULE__{
             raw_payload_type: Caps.raw_payload_type() | nil,
             secure: boolean(),
-            context_map: nil | %{Context.id() => Context.t()}
+            context_map: nil | %{Context.id_t() => Context.t()}
           }
   end
 

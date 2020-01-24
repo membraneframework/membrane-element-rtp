@@ -3,20 +3,22 @@ defmodule Membrane.Element.RTP.Parser.Secure.Context do
   A struct for a cryptographic context, along with types for some of its fields.
   """
 
-  @type authentication_algorithm() :: :hmac_sha
-  @type encryption_algorithm() :: :aes_128_ctr | nil
-  @type id() :: {mki(), ip :: String.t(), port :: non_neg_integer()}
-  @type mki() :: non_neg_integer()
-  @type session_keys() :: %{srtp_encr: binary(), srtp_auth: binary(), srtp_salt: binary()}
-  @type session() :: {session_keys(), lifetime :: integer()}
+  alias Membrane.Element.RTP.Parser.Secure.MasterKey
+
+  @type authentication_algorithm_t() :: :hmac_sha
+  @type encryption_algorithm_t() :: :aes_128_ctr | nil
+  @type id_t() :: {mki_t(), ip :: String.t(), port :: non_neg_integer()}
+  @type mki_t() :: non_neg_integer()
+  @type session_keys_t() :: %{srtp_encr: binary(), srtp_auth: binary(), srtp_salt: binary()}
+  @type session_t() :: {session_keys_t(), lifetime :: integer()}
 
   @type t() :: %__MODULE__{
-          master_keys: %{mki() => MasterKey.t()},
-          from_to_list: [{from_position :: integer(), to_position :: integer(), mki()}],
-          sessions: %{mki() => session()},
+          master_keys: %{mki_t() => MasterKey.t()},
+          from_to_list: [{from_position :: integer(), to_position :: integer(), mki_t()}],
+          sessions: %{mki_t() => session_t()},
           rollover_counter: non_neg_integer(),
-          encryption_alg: encryption_algorithm(),
-          auth_alg: authentication_algorithm(),
+          encryption_alg: encryption_algorithm_t(),
+          auth_alg: authentication_algorithm_t(),
           auth_key_size: non_neg_integer(),
           auth_tag_size: non_neg_integer(),
           mki_indicator: boolean(),
@@ -30,7 +32,7 @@ defmodule Membrane.Element.RTP.Parser.Secure.Context do
   @typedoc """
   Data needed to update a context after a packet has been parsed successfully.
   """
-  @type update() :: {non_neg_integer(), non_neg_integer(), non_neg_integer(), mki()} | nil
+  @type update_t() :: {non_neg_integer(), non_neg_integer(), non_neg_integer(), mki_t()} | nil
 
   defstruct master_keys: %{},
             from_to_list: [],
