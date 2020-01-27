@@ -16,7 +16,8 @@ defmodule Membrane.Element.RTP.Parser.Secure do
   def get_context(context_map, ssrc, metadata) do
     id = {ssrc, metadata[:local_address], metadata[:local_port]}
 
-    Map.get(context_map, id, nil)
+    context_map
+    |> Map.get(id)
     |> case do
       nil -> {:error, :no_context}
       ctx -> {:ok, ctx, id}
@@ -52,8 +53,8 @@ defmodule Membrane.Element.RTP.Parser.Secure do
     end
   end
 
-  @spec update_context(Context.t(), Context.update_t()) :: {:ok, Context.t()}
-  def update_context(context, nil), do: {:ok, context}
+  @spec update_context(Context.t(), Context.update_t()) :: Context.t()
+  def update_context(context, nil), do: context
 
   def update_context(context, {index, s_l, roc, mki}) do
     context
@@ -153,12 +154,13 @@ defmodule Membrane.Element.RTP.Parser.Secure do
 
   @spec update_mk_counter(Context.t(), MasterKey.id_t()) :: Context.t()
   defp update_mk_counter(context, mki) do
-    update_in(context, [:master_keys, mki, :packet_counter], &(&1 + 1))
+    keys = [Access.key!(:master_keys), Access.key!(mki), Access.key!(:packet_count)]
+    update_in(context, keys, &(&1 + 1))
   end
 
-  @spec update_replay_list(Context.t(), integer()) :: {:ok, Context.t()}
+  @spec update_replay_list(Context.t(), integer()) :: Context.t()
   defp update_replay_list(%Context{replay_list: _list} = ctx, _todo_index) do
     # TODO
-    {:ok, ctx}
+    ctx
   end
 end

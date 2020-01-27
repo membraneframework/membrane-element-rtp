@@ -7,6 +7,7 @@ defmodule Membrane.Element.RTP.SamplePacket do
   @external_resource "test/fixtures/rtp/rtp_packet_payload.bin"
   @sample_packet_payload File.read!("test/fixtures/rtp/rtp_packet_payload.bin")
   @sample_srtp_packet File.read!("test/fixtures/srtp/srtp_packet")
+  @srtp_packet_list File.read!("test/fixtures/srtp/srtp_packet_list")
 
   @spec sample_packet() :: binary()
   def sample_packet, do: @sample_packet
@@ -59,5 +60,12 @@ defmodule Membrane.Element.RTP.SamplePacket do
     |> case do
       {:ok, packet} -> packet
     end
+  end
+
+  @spec srtp_packet_list() :: [binary()]
+  def srtp_packet_list do
+    @srtp_packet_list
+    |> String.split()
+    |> Enum.map(&hex_to_bin(&1))
   end
 end

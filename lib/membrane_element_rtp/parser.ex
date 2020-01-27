@@ -117,7 +117,7 @@ defmodule Membrane.Element.RTP.Parser do
          {:ok, payload, updates} <-
            Secure.process_payload(payload, auth_portion, context, header, suffix) do
       context = Secure.update_context(context, updates)
-      state = put_in(state, [:context_map, context_id], context)
+      state = put_in(state, [Access.key!(:context_map), Access.key!(context_id)], context)
       {:ok, payload, suffix, state}
     end
   end
