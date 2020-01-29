@@ -14,7 +14,7 @@ defmodule Membrane.Element.RTP.BundlexProject do
         libs: ["crypto", "ssl"],
         deps: [membrane_libdtlssrtp_wrapper: :handshaker_utils]
       ]
-    ] ++ cnodes_if_env_test(Mix.env)
+    ] ++ cnodes_if_env_test(Mix.env())
   end
 
   defp cnodes_if_env_test(:test) do
