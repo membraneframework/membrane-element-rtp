@@ -65,7 +65,7 @@ defmodule Membrane.Element.RTP.MixProject do
       {:membrane_caps_rtp, "~> 0.1"},
       {:excoveralls, "~> 0.8", only: :test},
       {:bundlex, "~> 0.2.7"},
-      {:membrane_libdtlssrtp_wrapper, path: "/Users/feliks/membrane/membrane-libdtlssrtp_wrapper"}
+      {:membrane_libdtlssrtp_wrapper, git: "https://github.com/membraneframework/membrane-libdtlssrtp-wrapper.git", branch: "develop"}
     ]
   end
 end
