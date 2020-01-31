@@ -11,6 +11,7 @@
 #define _REENTRANT // For some reason __erl_errno is undefined unless _REENTRANT
                    // is defined
 #endif
+
 #include "handshaker.h"
 #include <ei_connect.h>
 #include <erl_interface.h>
