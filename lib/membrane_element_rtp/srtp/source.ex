@@ -68,7 +68,7 @@ defmodule Membrane.Element.RTP.SRTP.Source do
   end
 
   @impl true
-  def handle_other({cnode_name, {:packet, packet}}, _ctx, state) do
+  def handle_other({_cnode_name, {:packet, packet}}, _ctx, state) do
     buff_cntn = %Buffer{payload: packet}
     action = [buffer: {:output, buff_cntn}]
     {{:ok, action}, state}
@@ -76,7 +76,7 @@ defmodule Membrane.Element.RTP.SRTP.Source do
 
   @impl true
   def handle_other(
-        {cnode_name,
+        {_cnode_name,
          {
            {:localkey, localkey},
            {:remotekey, remotekey},

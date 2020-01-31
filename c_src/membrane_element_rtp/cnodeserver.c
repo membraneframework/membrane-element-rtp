@@ -74,7 +74,7 @@ int parse_string_arg(const char *buf, int *index, char *dest) {
 int decode_message_type(const char *buff, int *decode_idx, char *dst) {
   int arity;
   if (ei_decode_tuple_header(buff, decode_idx, &arity) || arity != 2) {
-    -1;
+    return -1;
   }
 
   return ei_decode_atom(buff, decode_idx, dst);
@@ -86,7 +86,6 @@ int handle_message(int ei_fd, const char *node_name, erlang_msg emsg,
   ei_x_new_with_version(&out_buf);
   int decode_idx = 0;
   int version;
-  char fun[255];
   int arity;
 
   if (ei_decode_version(in_buf->buff, &decode_idx, &version)) {
