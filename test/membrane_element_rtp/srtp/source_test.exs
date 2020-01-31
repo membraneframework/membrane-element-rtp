@@ -55,7 +55,7 @@ defmodule Membrane.Element.RTP.SRTP.SourceTest do
   end
 
   test "Source starts CNode, performs handshake and forwards given messages" do
-    "epmd -daemon" |> to_charlist |> :os.cmd
+    "epmd -daemon" |> to_charlist |> :os.cmd()
 
     client_cmd = "_build/dev/lib/membrane_element_rtp/priv/bundlex/test_client"
     path_prefix = "test/fixtures/dtls_srtp/"
