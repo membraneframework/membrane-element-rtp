@@ -1,20 +1,17 @@
 defmodule Membrane.Element.RTP.SRTP.SourceTest do
   use ExUnit.Case
 
-  import Membrane.Testing.Assertions
-
   require Bundlex.CNode
 
   alias Membrane.Element.RTP.SRTP.Source
   alias Membrane.Element.RTP.SRTP.KeySet
   alias Membrane.Buffer
-  alias Bundlex.CNode
 
-  defp is_action_with_event({{:ok, [buffer: {pad, %Buffer{} = buff_cntn}]}, state}) do
+  defp is_action_with_event({{:ok, [buffer: {_pad, %Buffer{} = _buff_cntn}]}, _state}) do
     false
   end
 
-  defp is_action_with_event({{:ok, {:event, {pad, %KeySet{} = key_set}}}, state}) do
+  defp is_action_with_event({{:ok, {:event, {_pad, %KeySet{} = _key_set}}}, _state}) do
     true
   end
 
@@ -53,7 +50,7 @@ defmodule Membrane.Element.RTP.SRTP.SourceTest do
 
       counting_loop(tail, counter)
     else
-      empty_list -> counter
+      _empty_list -> counter
     end
   end
 
