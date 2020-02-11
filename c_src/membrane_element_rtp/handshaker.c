@@ -75,7 +75,6 @@ int dtls_srtp_server(const char *cert_file, const char *pkey_file,
   if (get_ssl_ctx(cert_file, pkey_file, &ssl_ctx) < 0) {
     return -1;
   }
-
   if (get_sock_fd(local_addr, local_port, &sock_fd) < 0) {
     return -1;
   }
