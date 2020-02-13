@@ -11,12 +11,11 @@ defmodule Membrane.Element.RTP.Parser do
   alias Membrane.Element.RTP.Parser.Secure
   alias Membrane.Element.RTP.Parser.Secure.Context
   alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder, Suffix}
-  alias Membrane.Event.NewContext
 
   @metadata_fields [:timestamp, :sequence_number, :ssrc, :payload_type]
 
-  def_options context_map: [
-                spec: %{Context.id_t() => Context.t()},
+  def_options context: [
+                spec: Context.t(),
                 description: "Initial map with cryptographic contexts",
                 default: %{}
               ],
@@ -37,29 +36,28 @@ defmodule Membrane.Element.RTP.Parser do
     @moduledoc false
     defstruct raw_payload_type: nil,
               secure: false,
-              context_map: nil
+              context: nil
 
     @type t :: %__MODULE__{
             raw_payload_type: Caps.raw_payload_type() | nil,
             secure: boolean(),
-            context_map: nil | %{Context.id_t() => Context.t()}
+            context: nil | Context.t()
           }
   end
 
   @impl true
   def handle_init(opts) do
-    {:ok, %State{secure: opts.secure, context_map: opts.context_map}}
-  end
-
-  @impl true
-  def handle_event(:input, %NewContext{context_id: id, context: ctx}, _event_ctx, state) do
-    state = put_in(state, [:context_map, id], ctx)
-    {:ok, state}
+    {:ok, %State{secure: opts.secure, context: opts.context}}
   end
 
   @impl true
   def handle_event(:input, event, _ctx, state) do
     {{:ok, event: {:output, event}}, state}
+  end
+
+  @impl true
+  def handle_event(:output, event, _ctx, state) do
+    {{:ok, event: {:input, event}}, state}
   end
 
   @impl true
@@ -103,22 +101,21 @@ defmodule Membrane.Element.RTP.Parser do
   defp process_secure(_buffer, _header, payload, %{secure: false} = state),
     do: {:ok, payload, nil, state}
 
-  defp process_secure(buffer, header, payload, %{secure: true} = state) do
-    with {:ok, context, context_id} <-
-           Secure.get_context(state.context_map, header.ssrc, buffer.metadata),
-         {payload, suffix} =
-           PacketParser.extract_suffix(payload, context.mki_indicator, context.auth_tag_size),
-         {auth_portion, _suffix} =
-           PacketParser.extract_suffix(
-             buffer.payload,
-             context.mki_indicator,
-             context.auth_tag_size
-           ),
-         {:ok, payload, updates} <-
+  defp process_secure(buffer, header, payload, %{context: context, secure: true} = state) do
+    {payload, suffix} =
+      PacketParser.extract_suffix(payload, context.mki_indicator, context.auth_tag_size)
+
+    {auth_portion, _suffix} =
+      PacketParser.extract_suffix(
+        buffer.payload,
+        context.mki_indicator,
+        context.auth_tag_size
+      )
+
+    with {:ok, payload, updates} <-
            Secure.process_payload(payload, auth_portion, context, header, suffix) do
       context = Secure.update_context(context, updates)
-      state = put_in(state, [Access.key!(:context_map), Access.key!(context_id)], context)
-      {:ok, payload, suffix, state}
+      {:ok, payload, suffix, %{state | context: context}}
     end
   end
 

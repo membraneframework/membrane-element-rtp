@@ -11,19 +11,6 @@ defmodule Membrane.Element.RTP.Parser.Secure do
   alias Membrane.Element.RTP.{Header, Suffix}
   alias Membrane.Element.RTP.Parser.Secure.{Context, MasterKey, SessionKeys}
 
-  @spec get_context(%{Context.id_t() => Context.t()}, integer(), map()) ::
-          {:ok, Context.t(), Context.id_t()}
-  def get_context(context_map, ssrc, metadata) do
-    id = {ssrc, metadata[:local_address], metadata[:local_port]}
-
-    context_map
-    |> Map.get(id)
-    |> case do
-      nil -> {:error, :no_context}
-      ctx -> {:ok, ctx, id}
-    end
-  end
-
   @doc """
   Verifies (authenticates) and decrypts the payload of a SRTP packet.
   Returns the decrypted payload along with any updates that should be applied

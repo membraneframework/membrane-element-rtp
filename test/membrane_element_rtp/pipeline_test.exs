@@ -33,7 +33,6 @@ defmodule Membrane.Element.RTP.PipelineTest do
   test "Pipeline decodes a set of SRTP packets" do
     test_data = SamplePacket.srtp_packet_list()
 
-    id = {2138, nil, nil}
     key = <<1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>>
     salt = <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>>
 
@@ -48,7 +47,7 @@ defmodule Membrane.Element.RTP.PipelineTest do
       Pipeline.start_link(%Pipeline.Options{
         elements: [
           source: %Source{output: test_data},
-          parser: %Parser{secure: true, context_map: %{id => context}},
+          parser: %Parser{secure: true, context: context},
           sink: %Sink{}
         ]
       })
