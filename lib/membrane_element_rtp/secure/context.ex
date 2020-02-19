@@ -21,10 +21,10 @@ defmodule Membrane.Element.RTP.Parser.Secure.Context do
           auth_key_size: non_neg_integer(),
           auth_tag_size: non_neg_integer(),
           mki_indicator: boolean(),
+          mki_size: non_neg_integer(),
           s_l: non_neg_integer(),
           replay_list: list(),
           encryption_key_size: non_neg_integer(),
-          master_key_identifier_size: non_neg_integer(),
           salt_size: non_neg_integer()
         }
 
@@ -43,9 +43,9 @@ defmodule Membrane.Element.RTP.Parser.Secure.Context do
             auth_key_size: 160,
             auth_tag_size: 80,
             mki_indicator: false,
+            mki_size: 32,
             s_l: 0,
             replay_list: [],
             encryption_key_size: 128,
-            master_key_identifier_size: 0,
             salt_size: 112
 end

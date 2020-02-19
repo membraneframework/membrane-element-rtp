@@ -12,7 +12,7 @@ defmodule Membrane.Element.RTP.Parser.Secure.SessionKeys do
 
   alias Membrane.Element.RTP.Parser.Secure.{Context, MasterKey}
 
-  @key_types [:srtp_encr, :srtp_auth, :srtp_salt]
+  @key_types [:srtp_encr, :srtp_auth, :srtp_salt, :srtcp_encr, :srtcp_auth, :srtcp_salt]
              |> Enum.with_index()
              |> Map.new()
 
@@ -66,7 +66,9 @@ defmodule Membrane.Element.RTP.Parser.Secure.SessionKeys do
     iv = <<ix::112, 0, 0>>
 
     key_size =
-      case key_type do
+      key_type
+      |> rem(3)
+      |> case do
         0 -> context.encryption_key_size
         1 -> context.auth_key_size
         2 -> context.salt_size

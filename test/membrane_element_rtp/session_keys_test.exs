@@ -31,7 +31,8 @@ defmodule Membrane.Element.RTP.Parser.Secure.SessionKeysTest do
         )
     }
 
-    assert correct == session_keys
+    srtp_keys = Map.keys(correct)
+    assert correct == Map.take(session_keys, srtp_keys)
   end
 
   defp decode(p) do
