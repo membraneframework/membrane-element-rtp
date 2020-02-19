@@ -19,13 +19,14 @@ defmodule Membrane.Element.RTP.PacketParser do
       ) do
     {parsed_csrc, rest} = extract_csrcs(rest, cc)
     {extension_header, payload} = extract_extension_header(x, rest)
-    payload = ignore_padding(p, payload)
+    padding? = extract_boolean(p)
+    payload = ignore_padding(payload, padding?)
 
     packet = %Packet{
       header: %Header{
         version: v,
         marker: extract_boolean(m),
-        padding: extract_boolean(p),
+        padding: padding?,
         extension_header: extract_boolean(x),
         csrc_count: cc,
         ssrc: ssrc,
@@ -65,10 +66,10 @@ defmodule Membrane.Element.RTP.PacketParser do
   defp extract_boolean(1), do: true
   defp extract_boolean(0), do: false
 
-  defp ignore_padding(is_padding_present, payload)
-  defp ignore_padding(0, payload), do: payload
+  def ignore_padding(is_padding_present, payload)
+  def ignore_padding(payload, false), do: payload
 
-  defp ignore_padding(1, payload) do
+  def ignore_padding(payload, true) do
     padding_size = :binary.last(payload)
     payload_size = byte_size(payload) - padding_size
     <<stripped_payload::binary-size(payload_size), _::binary-size(padding_size)>> = payload
