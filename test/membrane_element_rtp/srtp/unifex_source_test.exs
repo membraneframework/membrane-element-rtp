@@ -1,9 +1,9 @@
-defmodule Membrane.Element.RTP.SRTP.SourceTest do
+defmodule Membrane.Element.RTP.SRTP.UnifexSourceTest do
   use ExUnit.Case
 
-  require Bundlex.CNode
+  require Unifex.UnifexCNode
 
-  alias Membrane.Element.RTP.SRTP.Source
+  alias Membrane.Element.RTP.SRTP.UnifexSource
   alias Membrane.Element.RTP.SRTP.KeySet
   alias Membrane.Buffer
 
@@ -23,7 +23,7 @@ defmodule Membrane.Element.RTP.SRTP.SourceTest do
     receive do
       msg ->
         empty_ctx = %{}
-        Source.handle_other(msg, empty_ctx, state)
+        UnifexSource.handle_other(msg, empty_ctx, state)
     after
       5000 ->
         flunk("Timeout exceed!\n")
@@ -58,6 +58,7 @@ defmodule Membrane.Element.RTP.SRTP.SourceTest do
     "epmd -daemon" |> to_charlist |> :os.cmd()
 
     client_cmd = "_build/test/lib/membrane_element_rtp/priv/bundlex/test_client"
+
     path_prefix = "test/fixtures/dtls_srtp/"
     cert_file = path_prefix <> "MyCertificate.crt"
     pkey_file = path_prefix <> "MyKey.key"
@@ -67,15 +68,15 @@ defmodule Membrane.Element.RTP.SRTP.SourceTest do
     client_port = 6970
     empty_ctx = %{}
 
-    source_opts = %Source{
+    source_opts = %UnifexSource{
       cert_file: cert_file,
       pkey_file: pkey_file,
       local_addr: local_addr,
       local_port: server_port
     }
 
-    {:ok, source_state} = Source.handle_init(source_opts)
-    {:ok, source_state} = Source.handle_stopped_to_prepared(empty_ctx, source_state)
+    {:ok, source_state} = UnifexSource.handle_init(source_opts)
+    {:ok, source_state} = UnifexSource.handle_stopped_to_prepared(empty_ctx, source_state)
 
     client_argv = [
       "-k",
@@ -90,7 +91,9 @@ defmodule Membrane.Element.RTP.SRTP.SourceTest do
       server_port
     ]
 
-    command = ([client_cmd] ++ client_argv ++ ["&"]) |> Enum.join(" ") |> to_charlist
+    command =
+      ([client_cmd] ++ client_argv ++ ["&"]) |> Enum.join(" ") |> to_charlist |> IO.inspect()
+
     :os.cmd(command)
 
     counter = source_state |> receive_and_handle_loop(11) |> counting_loop()

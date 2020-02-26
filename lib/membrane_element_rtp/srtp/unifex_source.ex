@@ -1,13 +1,13 @@
-defmodule Membrane.Element.RTP.SRTP.Source do
+defmodule Membrane.Element.RTP.SRTP.UnifexSource do
   @moduledoc """
   Element that starts CNode, which performs DTLS-SRTP handshakes with clients and forwards arriving packets and keys via output pad.
   """
 
-  require Bundlex.CNode
+  require Unifex.UnifexCNode
 
+  alias Unifex.UnifexCNode
   alias Membrane.Element.RTP.SRTP.KeySet
   alias Membrane.Buffer
-  alias Bundlex.CNode
 
   use Membrane.Source
 
@@ -53,39 +53,39 @@ defmodule Membrane.Element.RTP.SRTP.Source do
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
-    {:ok, cnode} = CNode.start_link(:handshaker)
+    {:ok, cnode} = UnifexCNode.start_link(:unifex_handshaker)
 
-    msg = {
+    server_config = [
       state.cert_file,
       state.pkey_file,
       state.local_addr |> Tuple.to_list() |> Enum.join("."),
       state.local_port
-    }
+    ]
 
-    :ok = cnode |> CNode.call({:handshake, msg})
+    cnode |> UnifexCNode.cast(:start_server, server_config)
+
+    receive do
+      {:server_running} -> :ok
+    after
+      5000 -> raise "DTLS-SRTP server not running"
+    end
 
     {:ok, %{state | cnode: cnode}}
   end
 
   @impl true
-  def handle_other({_cnode_name, {:packet, packet}}, _ctx, state) do
-    buff_cntn = %Buffer{payload: packet}
-    action = [buffer: {:output, buff_cntn}]
-    {{:ok, action}, state}
+  def handle_prepared_to_stopped(_ctx, state) do
+    UnifexCNode.stop(state.cnode)
+    {:ok, state}
   end
 
   @impl true
-  def handle_other(
-        {_cnode_name,
-         {
-           {:localkey, localkey},
-           {:remotekey, remotekey},
-           {:localsalt, localsalt},
-           {:remotesalt, remotesalt}
-         }},
-        _ctx,
-        state
-      ) do
+  def handle_other(_msg, %{playback_state: :stopped} = _ctx, state) do
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_other({:key_set, localkey, remotekey, localsalt, remotesalt}, _ctx, state) do
     key_set = %KeySet{
       localkey: localkey,
       remotekey: remotekey,
@@ -95,5 +95,12 @@ defmodule Membrane.Element.RTP.SRTP.Source do
 
     event_action = {:event, {:output, key_set}}
     {{:ok, event_action}, state}
+  end
+
+  @impl true
+  def handle_other({:packet, content}, _ctx, state) do
+    buff_cntn = %Buffer{payload: content}
+    action = [buffer: {:output, buff_cntn}]
+    {{:ok, action}, state}
   end
 end

@@ -19,7 +19,7 @@ defmodule Membrane.Element.RTP.MixProject do
       homepage_url: "https://membraneframework.org",
       test_coverage: [tool: ExCoveralls],
       deps: deps(),
-      compilers: [:bundlex | Mix.compilers()],
+      compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.detail": :test,
@@ -64,7 +64,8 @@ defmodule Membrane.Element.RTP.MixProject do
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:membrane_caps_rtp, "~> 0.1"},
       {:excoveralls, "~> 0.8", only: :test},
-      {:bundlex, "~> 0.2.7"},
+      {:bundlex, git: "https://github.com/membraneframework/bundlex.git", override: true},
+      {:unifex, git: "https://github.com/membraneframework/unifex.git", branch: "cnode_support"},
       {:membrane_libdtlssrtp_wrapper,
        git: "https://github.com/membraneframework/membrane-libdtlssrtp_wrapper.git",
        branch: "develop"}

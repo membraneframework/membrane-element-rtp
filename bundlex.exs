@@ -2,22 +2,36 @@ defmodule Membrane.Element.RTP.BundlexProject do
   use Bundlex.Project
 
   def project() do
-    [cnodes: cnodes()]
+    [
+      cnodes: cnodes()
+    ]
   end
 
   defp cnodes() do
+    dev_cnodes() ++ optional_test_cnodes(Mix.env())
+  end
+
+  defp dev_cnodes() do
     [
-      handshaker: [
-        sources: ["handshaker.c", "cnodeserver.c"],
+      unifex_handshaker: [
+        sources: ["unifex_handshaker.c", "_generated/unifex_handshaker.c"],
         includes: includes(Bundlex.platform()),
         lib_dirs: lib_dirs(Bundlex.platform()),
         libs: ["crypto", "ssl"],
-        deps: [membrane_libdtlssrtp_wrapper: :handshaker_utils]
+        deps: [membrane_libdtlssrtp_wrapper: :handshaker_utils, unifex: :cnode_utils]
       ]
-    ] ++ cnodes_if_env_test(Mix.env())
+      # ,
+      # handshaker: [
+      #   sources: ["handshaker.c", "cnodeserver.c"],
+      #   includes: includes(Bundlex.platform()),
+      #   lib_dirs: lib_dirs(Bundlex.platform()),
+      #   libs: ["crypto", "ssl"],
+      #   deps: [membrane_libdtlssrtp_wrapper: :handshaker_utils]
+      # ]
+    ]
   end
 
-  defp cnodes_if_env_test(:test) do
+  defp optional_test_cnodes(:test) do
     [
       test_client: [
         sources: ["test_client.c"],
@@ -29,7 +43,7 @@ defmodule Membrane.Element.RTP.BundlexProject do
     ]
   end
 
-  defp cnodes_if_env_test(_env) do
+  defp optional_test_cnodes(_env) do
     []
   end
 
