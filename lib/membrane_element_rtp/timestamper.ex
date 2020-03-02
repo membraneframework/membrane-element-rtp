@@ -5,11 +5,11 @@ defmodule Membrane.Element.RTP.Timestamper do
   def_input_pad :input, demand_unit: :buffers, caps: :any
   def_output_pad :output, caps: :any
 
-  def_options resolution: []
+  def_options resolution: [], init_timestamp: [default: nil]
 
   @impl true
   def handle_init(opts) do
-    {:ok, opts |> Map.from_struct() |> Map.merge(%{init_timestamp: nil})}
+    {:ok, opts |> Map.from_struct()}
   end
 
   @impl true
