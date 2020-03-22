@@ -41,6 +41,40 @@ defmodule Membrane.Element.RTP.PacketParser do
     {:ok, packet}
   end
 
+  def serialize(packet) do
+    %{
+      version: v,
+      csrcs: csrc,
+      csrc_count: cc,
+      marker: marker,
+      payload_type: pt,
+      sequence_number: seq,
+      timestamp: timestamp,
+      ssrc: ssrc,
+      # TODO support extension header
+      extension_header: false
+    } = packet.header
+
+    x = 0
+    # We don't need padding
+    p = 0
+
+    csrc_bin = serialize_csrcs(csrc)
+
+    <<v::2, p::1, x::1, cc::4, encode_boolean(marker)::1, pt::7, seq::16, timestamp::32, ssrc::32,
+      csrc_bin::binary, packet.payload::binary>>
+  end
+
+  defp serialize_csrcs(csrcs, acc \\ <<>>)
+
+  defp serialize_csrcs([], acc) do
+    acc
+  end
+
+  defp serialize_csrcs([csrc | csrcs], acc) do
+    acc <> <<csrc::32>> <> serialize_csrcs(csrcs)
+  end
+
   defp extract_csrcs(data, count, acc \\ [])
   defp extract_csrcs(data, 0, acc), do: {acc, data}
 
@@ -64,6 +98,9 @@ defmodule Membrane.Element.RTP.PacketParser do
   defp extract_boolean(read_value)
   defp extract_boolean(1), do: true
   defp extract_boolean(0), do: false
+
+  defp encode_boolean(false), do: 0
+  defp encode_boolean(true), do: 1
 
   defp ignore_padding(is_padding_present, payload)
   defp ignore_padding(0, payload), do: payload
