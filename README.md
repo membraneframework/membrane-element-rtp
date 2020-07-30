@@ -1,8 +1,8 @@
 # Membrane Multimedia Framework: RTP
 
-[![CircleCI](https://circleci.com/gh/membraneframework/membrane-element-rtp.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane-element-rtp)
+### Warning: this package is deprecated, use [membrane_rtp_plugin](https://hexdocs.pm/membrane_rtp_plugin) instead
 
-### Warning: this package is deprecated, use [membrane_rtp_plugin](https://hexdocs.pl/membrane_rtp_plugin) instead
+[![CircleCI](https://circleci.com/gh/membraneframework/membrane-element-rtp.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane-element-rtp)
 
 This package provides elements that can be used to parse RTP packets.
 
