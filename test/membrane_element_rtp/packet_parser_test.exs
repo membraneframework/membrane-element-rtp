@@ -1,24 +1,20 @@
 defmodule Membrane.Element.RTP.PacketParserTest do
   use ExUnit.Case
 
-  alias Membrane.Element.RTP.{Header, Packet, PacketParser, SamplePacket}
+  alias Membrane.Element.RTP.{Header, PacketParser, SamplePacket, Suffix}
 
-  describe "RTP parser" do
+  describe "RTP.Parser for RTP packets" do
     test "parses valid packets" do
-      assert PacketParser.parse_packet(SamplePacket.sample_packet()) ==
-               {:ok,
-                %Packet{
-                  header: SamplePacket.sample_header(),
-                  payload: SamplePacket.sample_packet_payload()
-                }}
+      assert PacketParser.parse_header(SamplePacket.sample_packet()) ==
+               {:ok, SamplePacket.sample_header(), SamplePacket.sample_packet_payload()}
     end
 
     test "returns error when version is not supported" do
-      assert PacketParser.parse_packet(<<1::2, 1233::1022>>) == {:error, :wrong_version}
+      assert PacketParser.parse_header(<<1::2, 1233::1022>>) == {:error, :wrong_version}
     end
 
     test "returns error when packet is too short" do
-      assert PacketParser.parse_packet(<<128, 127, 0, 0, 1>>) == {:error, :packet_malformed}
+      assert PacketParser.parse_header(<<128, 127, 0, 0, 1>>) == {:error, :packet_malformed}
     end
 
     test "parses csrcs correctly" do
@@ -26,12 +22,8 @@ defmodule Membrane.Element.RTP.PacketParserTest do
       test_packet = <<header_1::4, 2::4, header_2::88, 12::32, 21::32, payload::binary()>>
       expected_header = %Header{SamplePacket.sample_header() | csrcs: [21, 12], csrc_count: 2}
 
-      assert PacketParser.parse_packet(test_packet) ==
-               {:ok,
-                %Packet{
-                  header: expected_header,
-                  payload: SamplePacket.sample_packet_payload()
-                }}
+      assert PacketParser.parse_header(test_packet) ==
+               {:ok, expected_header, SamplePacket.sample_packet_payload()}
     end
 
     test "ignores padding" do
@@ -47,12 +39,9 @@ defmodule Membrane.Element.RTP.PacketParserTest do
 
       expected_header = %Header{SamplePacket.sample_header() | padding: true}
 
-      assert PacketParser.parse_packet(test_packet) ==
-               {:ok,
-                %Packet{
-                  header: expected_header,
-                  payload: SamplePacket.sample_packet_payload()
-                }}
+      assert {:ok, ^expected_header, payload} = PacketParser.parse_header(test_packet)
+      payload = PacketParser.ignore_padding(payload, true)
+      assert payload == SamplePacket.sample_packet_payload()
     end
 
     test "reads extension header" do
@@ -76,12 +65,30 @@ defmodule Membrane.Element.RTP.PacketParserTest do
           extension_header_data: expected_parsed_extension_header
       }
 
-      assert PacketParser.parse_packet(test_packet) ==
-               {:ok,
-                %Membrane.Element.RTP.Packet{
-                  header: expected_header,
-                  payload: SamplePacket.sample_packet_payload()
-                }}
+      assert PacketParser.parse_header(test_packet) ==
+               {:ok, expected_header, SamplePacket.sample_packet_payload()}
+    end
+  end
+
+  describe "RTP.Parser for SRTP packets" do
+    setup do
+      test_binary = SamplePacket.sample_srtp_packet()
+      {:ok, _hd, rest} = PacketParser.parse_header(test_binary)
+      %{packet: test_binary, payload_and_suffix: rest}
+    end
+
+    test "parses SRTP suffixes", %{payload_and_suffix: rest} do
+      {_payload, suffix} = PacketParser.extract_suffix(rest, false, 80)
+      assert %Suffix{mki: nil, auth_tag: _} = suffix
+    end
+
+    test "parses SRTP suffixes with MKI", %{packet: packet, payload_and_suffix: rest} do
+      s = byte_size(packet) - 20 - 4
+      <<_::s*8, mki::32, tag::160>> = packet
+      tag = :binary.encode_unsigned(tag)
+
+      assert {_payload, suffix} = PacketParser.extract_suffix(rest, true, 160)
+      assert %Suffix{mki: ^mki, auth_tag: ^tag} = suffix
     end
   end
 end

@@ -24,31 +24,31 @@ defmodule Membrane.Element.RTP.Header do
   @typedoc """
   This field identifies the version of RTP. The version defined by this specification is 2.
   """
-  @type version :: 0..2
+  @type version_t :: 0..2
 
   @typedoc """
   Indicates whether a packet contains additional padding at the end.
   The last octet of the padding contains a count of padding octets that should be ignored, including itself.
   """
-  @type padding :: boolean()
+  @type padding_t :: boolean()
 
   @typedoc """
   If the extension bit is set, the fixed header MUST be followed by exactly one header extension
   """
-  @type extension :: boolean()
+  @type extension_t :: boolean()
 
   @typedoc """
   The interpretation of the marker is defined by a profile
   """
-  @type marker :: boolean()
+  @type marker_t :: boolean()
 
   @type t :: %__MODULE__{
-          version: version(),
-          padding: padding(),
-          extension_header: extension(),
+          version: version_t(),
+          padding: padding_t(),
+          extension_header: extension_t(),
           csrc_count: 0..15,
           ssrc: non_neg_integer(),
-          marker: marker(),
+          marker: marker_t(),
           payload_type: RTP.raw_payload_type(),
           timestamp: non_neg_integer(),
           sequence_number: non_neg_integer(),

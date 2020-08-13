@@ -6,9 +6,14 @@ defmodule Membrane.Element.RTP.SamplePacket do
   @sample_packet File.read!("test/fixtures/rtp/rtp_packet.bin")
   @external_resource "test/fixtures/rtp/rtp_packet_payload.bin"
   @sample_packet_payload File.read!("test/fixtures/rtp/rtp_packet_payload.bin")
+  @sample_srtp_packet File.read!("test/fixtures/srtp/srtp_packet")
+  @srtp_packet_list File.read!("test/fixtures/srtp/srtp_packet_list")
 
   @spec sample_packet() :: binary()
   def sample_packet, do: @sample_packet
+
+  @spec sample_srtp_packet() :: binary()
+  def sample_srtp_packet, do: hex_to_bin(@sample_srtp_packet)
 
   @spec sample_packet_payload() :: binary()
   def sample_packet_payload, do: @sample_packet_payload
@@ -46,5 +51,21 @@ defmodule Membrane.Element.RTP.SamplePacket do
       <<2::2, 0::1, 0::1, 0::4, 0::1, 14::7, base_seqnumber + packet_number::16,
         base_timestamp + 30_000 * packet_number::32, ssrc::32, sample_packet_payload()::binary()>>
     end)
+  end
+
+  def hex_to_bin(hex) do
+    hex
+    |> String.trim_trailing()
+    |> Base.decode16()
+    |> case do
+      {:ok, packet} -> packet
+    end
+  end
+
+  @spec srtp_packet_list() :: [binary()]
+  def srtp_packet_list do
+    @srtp_packet_list
+    |> String.split()
+    |> Enum.map(&hex_to_bin(&1))
   end
 end

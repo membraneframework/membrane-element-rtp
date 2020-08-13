@@ -1,7 +1,6 @@
 defmodule Membrane.Element.RTP.Parser do
   @moduledoc """
-  Parses RTP packets.
-  See `options/0` for available options
+  Parses RTP or SRTP packets, depending on provided options.
   """
 
   use Membrane.Filter
@@ -9,9 +8,22 @@ defmodule Membrane.Element.RTP.Parser do
   alias Membrane.Buffer
   alias Membrane.Caps.RTP, as: Caps
   alias Membrane.Element.Action
-  alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder}
+  alias Membrane.Element.RTP.Parser.Secure
+  alias Membrane.Element.RTP.Parser.Secure.Context
+  alias Membrane.Element.RTP.{Header, Packet, PacketParser, PayloadTypeDecoder, Suffix}
 
   @metadata_fields [:timestamp, :sequence_number, :ssrc, :payload_type]
+
+  def_options context: [
+                spec: Context.t(),
+                description: "Initial map with cryptographic contexts",
+                default: %{}
+              ],
+              secure: [
+                spec: boolean(),
+                description: "Enables SRTP support",
+                default: false
+              ]
 
   def_output_pad :output,
     caps: Caps
@@ -22,24 +34,41 @@ defmodule Membrane.Element.RTP.Parser do
 
   defmodule State do
     @moduledoc false
-    defstruct raw_payload_type: nil
+    defstruct raw_payload_type: nil,
+              secure: false,
+              context: nil
 
     @type t :: %__MODULE__{
-            raw_payload_type: Caps.raw_payload_type() | nil
+            raw_payload_type: Caps.raw_payload_type() | nil,
+            secure: boolean(),
+            context: nil | Context.t()
           }
   end
 
   @impl true
-  def handle_init(_) do
-    {:ok, %State{}}
+  def handle_init(opts) do
+    {:ok, %State{secure: opts.secure, context: opts.context}}
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: buffer_payload} = buffer, _ctx, state) do
-    with {:ok, %Packet{} = packet} <- PacketParser.parse_packet(buffer_payload),
-         {commands, state} <- build_commands(packet, buffer, state) do
-      {{:ok, commands}, state}
-    else
+  def handle_event(:input, event, _ctx, state) do
+    {{:ok, event: {:output, event}}, state}
+  end
+
+  @impl true
+  def handle_event(:output, event, _ctx, state) do
+    {{:ok, event: {:input, event}}, state}
+  end
+
+  @impl true
+  def handle_process(:input, buffer, _ctx, state) do
+    buffer
+    |> process_buffer(state)
+    |> case do
+      {:ok, packet, state} ->
+        {commands, state} = build_commands(packet, buffer, state)
+        {{:ok, commands}, state}
+
       {:error, reason} ->
         {{:error, reason}, state}
     end
@@ -48,6 +77,46 @@ defmodule Membrane.Element.RTP.Parser do
   @impl true
   def handle_demand(:output, size, _unit, _ctx, state) do
     {{:ok, demand: {:input, size}}, state}
+  end
+
+  @spec process_buffer(Buffer.t(), State.t()) ::
+          {:ok, Packet.t(), State.t()} | {:error, atom()}
+  defp process_buffer(buffer, state) do
+    with {:ok, header, payload} <- PacketParser.parse_header(buffer.payload),
+         {:ok, payload, suffix, state} <- process_secure(buffer, header, payload, state) do
+      payload = PacketParser.ignore_padding(payload, header.padding)
+
+      packet = %Packet{
+        header: header,
+        payload: payload,
+        suffix: suffix
+      }
+
+      {:ok, packet, state}
+    end
+  end
+
+  @spec process_secure(Buffer.t(), Header.t(), binary(), State.t()) ::
+          {:ok, binary(), Suffix.t() | nil, State.t()} | {:error, atom()}
+  defp process_secure(_buffer, _header, payload, %{secure: false} = state),
+    do: {:ok, payload, nil, state}
+
+  defp process_secure(buffer, header, payload, %{context: context, secure: true} = state) do
+    {payload, suffix} =
+      PacketParser.extract_suffix(payload, context.mki_indicator, context.auth_tag_size)
+
+    {auth_portion, _suffix} =
+      PacketParser.extract_suffix(
+        buffer.payload,
+        context.mki_indicator,
+        context.auth_tag_size
+      )
+
+    with {:ok, payload, updates} <-
+           Secure.process_payload(payload, auth_portion, context, header, suffix) do
+      context = Secure.update_context(context, updates)
+      {:ok, payload, suffix, %{state | context: context}}
+    end
   end
 
   @spec build_commands(Packet.t(), Buffer.t(), State.t()) :: {[Action.t()], State.t()}
